@@ -1,0 +1,238 @@
+import { useState } from 'react'
+import { Play, Figma, Globe, Settings } from 'lucide-react'
+import { toast } from 'react-toastify'
+import axios from 'axios'
+
+interface ComparisonFormProps {
+  onComparisonStart: (result: { jobId: string; status: string }) => void
+}
+
+export default function ComparisonForm({ onComparisonStart }: ComparisonFormProps) {
+  const [figmaUrl, setFigmaUrl] = useState('')
+  const [figmaToken, setFigmaToken] = useState('')
+  const [websiteUrl, setWebsiteUrl] = useState('')
+  const [viewportWidth, setViewportWidth] = useState('1920')
+  const [viewportHeight, setViewportHeight] = useState('1080')
+  const [comparisonMode, setComparisonMode] = useState('hybrid')
+  const [loading, setLoading] = useState(false)
+  const [showAdvanced, setShowAdvanced] = useState(false)
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (!figmaUrl || !figmaToken || !websiteUrl) {
+      toast.error('Please fill in all required fields')
+      return
+    }
+
+    setLoading(true)
+
+    try {
+      const response = await axios.post('/api/v1/compare', {
+        figma_input: {
+          type: 'url',
+          value: figmaUrl,
+          access_token: figmaToken,
+        },
+        website_url: websiteUrl,
+        options: {
+          viewport: {
+            width: parseInt(viewportWidth),
+            height: parseInt(viewportHeight),
+          },
+          comparison_mode: comparisonMode,
+          tolerance: {
+            color: 5,
+            spacing: 2,
+            dimension: 2,
+          },
+          include_screenshots: true,
+          generate_html_report: true,
+        },
+      })
+
+      toast.success('Comparison started successfully!')
+      onComparisonStart({
+        jobId: response.data.job_id,
+        status: response.data.status,
+      })
+    } catch (error: any) {
+      console.error('Error starting comparison:', error)
+      toast.error(error.response?.data?.detail || 'Failed to start comparison')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="max-w-4xl mx-auto">
+      <div className="card">
+        <div className="mb-6">
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            Start New Comparison
+          </h2>
+          <p className="text-gray-600">
+            Enter your Figma design and website URL to begin the UI comparison
+          </p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Figma Input */}
+          <div>
+            <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
+              <Figma className="w-5 h-5 text-primary-600" />
+              Figma Design
+            </label>
+            <input
+              type="url"
+              value={figmaUrl}
+              onChange={(e) => setFigmaUrl(e.target.value)}
+              placeholder="https://www.figma.com/file/..."
+              className="input-field mb-3"
+              required
+            />
+            <input
+              type="text"
+              value={figmaToken}
+              onChange={(e) => setFigmaToken(e.target.value)}
+              placeholder="Figma API Token (get from figma.com/developers)"
+              className="input-field"
+              required
+            />
+            <p className="text-xs text-gray-500 mt-2">
+              💡 Get your API token from{' '}
+              <a
+                href="https://www.figma.com/developers/api#access-tokens"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary-600 hover:underline"
+              >
+                Figma Developers
+              </a>
+            </p>
+          </div>
+
+          {/* Website Input */}
+          <div>
+            <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
+              <Globe className="w-5 h-5 text-green-600" />
+              Website URL
+            </label>
+            <input
+              type="url"
+              value={websiteUrl}
+              onChange={(e) => setWebsiteUrl(e.target.value)}
+              placeholder="https://example.com"
+              className="input-field"
+              required
+            />
+          </div>
+
+          {/* Advanced Settings */}
+          <div>
+            <button
+              type="button"
+              onClick={() => setShowAdvanced(!showAdvanced)}
+              className="flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-primary-600 transition-colors"
+            >
+              <Settings className="w-5 h-5" />
+              Advanced Settings
+              <span className="text-xs text-gray-500">
+                ({showAdvanced ? 'hide' : 'show'})
+              </span>
+            </button>
+
+            {showAdvanced && (
+              <div className="mt-4 p-4 bg-gray-50 rounded-lg space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 mb-1 block">
+                      Viewport Width
+                    </label>
+                    <input
+                      type="number"
+                      value={viewportWidth}
+                      onChange={(e) => setViewportWidth(e.target.value)}
+                      className="input-field"
+                      min="320"
+                      max="3840"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 mb-1 block">
+                      Viewport Height
+                    </label>
+                    <input
+                      type="number"
+                      value={viewportHeight}
+                      onChange={(e) => setViewportHeight(e.target.value)}
+                      className="input-field"
+                      min="240"
+                      max="2160"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-1 block">
+                    Comparison Mode
+                  </label>
+                  <select
+                    value={comparisonMode}
+                    onChange={(e) => setComparisonMode(e.target.value)}
+                    className="input-field"
+                  >
+                    <option value="hybrid">Hybrid (Recommended)</option>
+                    <option value="structural">Structural Only</option>
+                    <option value="visual">Visual Only</option>
+                  </select>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Submit Button */}
+          <button
+            type="submit"
+            disabled={loading}
+            className="btn-primary w-full flex items-center justify-center gap-2"
+          >
+            {loading ? (
+              <>
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                Processing...
+              </>
+            ) : (
+              <>
+                <Play className="w-5 h-5" />
+                Start Comparison
+              </>
+            )}
+          </button>
+        </form>
+      </div>
+
+      {/* Info Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+        <div className="bg-white rounded-lg p-4 border border-gray-200">
+          <h3 className="font-semibold text-gray-900 mb-1">🎨 Colors</h3>
+          <p className="text-sm text-gray-600">
+            Detects color inconsistencies and brand guideline violations
+          </p>
+        </div>
+        <div className="bg-white rounded-lg p-4 border border-gray-200">
+          <h3 className="font-semibold text-gray-900 mb-1">📏 Spacing & Layout</h3>
+          <p className="text-sm text-gray-600">
+            Identifies spacing, alignment, and dimension differences
+          </p>
+        </div>
+        <div className="bg-white rounded-lg p-4 border border-gray-200">
+          <h3 className="font-semibold text-gray-900 mb-1">🔤 Typography</h3>
+          <p className="text-sm text-gray-600">
+            Compares fonts, sizes, weights, and text properties
+          </p>
+        </div>
+      </div>
+    </div>
+  )
+}

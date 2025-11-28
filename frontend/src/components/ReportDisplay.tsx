@@ -1,0 +1,267 @@
+import { useState, useEffect } from 'react'
+import { ArrowLeft, Download, CheckCircle, AlertCircle, Info, Loader2 } from 'lucide-react'
+import axios from 'axios'
+import { toast } from 'react-toastify'
+import ReactCompareImage from 'react-compare-image'
+import DiffViewer from './DiffViewer'
+
+interface ReportDisplayProps {
+  jobId: string
+  onBack: () => void
+}
+
+interface DiffReport {
+  job_id: string
+  status: string
+  summary: {
+    total_differences: number
+    critical: number
+    warnings: number
+    info: number
+    match_score: number
+  }
+  differences: any[]
+  figma_screenshot_url?: string
+  website_screenshot_url?: string
+  visual_diff_url?: string
+  report_html_url?: string
+  error?: string
+}
+
+export default function ReportDisplay({ jobId, onBack }: ReportDisplayProps) {
+  const [report, setReport] = useState<DiffReport | null>(null)
+  const [progress, setProgress] = useState(0)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let progressInterval: NodeJS.Timeout
+    let reportPollInterval: NodeJS.Timeout
+
+    const fetchProgress = async () => {
+      try {
+        const response = await axios.get(`/api/v1/progress/${jobId}`)
+        setProgress(response.data.progress)
+
+        if (response.data.status === 'completed' || response.data.status === 'failed') {
+          clearInterval(progressInterval)
+          fetchReport()
+        }
+      } catch (err) {
+        console.error('Error fetching progress:', err)
+      }
+    }
+
+    const fetchReport = async () => {
+      try {
+        const response = await axios.get(`/api/v1/report/${jobId}`)
+        setReport(response.data)
+        setLoading(false)
+        clearInterval(reportPollInterval)
+
+        if (response.data.status === 'failed') {
+          setError(response.data.error || 'Comparison failed')
+          toast.error('Comparison failed')
+        } else {
+          toast.success('Comparison completed!')
+        }
+      } catch (err: any) {
+        if (err.response?.status === 202) {
+          // Still processing
+          return
+        }
+        console.error('Error fetching report:', err)
+        setError('Failed to load report')
+        setLoading(false)
+      }
+    }
+
+    // Poll for progress
+    progressInterval = setInterval(fetchProgress, 1000)
+    reportPollInterval = setInterval(fetchReport, 2000)
+
+    // Initial fetch
+    fetchProgress()
+
+    return () => {
+      clearInterval(progressInterval)
+      clearInterval(reportPollInterval)
+    }
+  }, [jobId])
+
+  const downloadReport = () => {
+    if (report?.report_html_url) {
+      window.open(report.report_html_url, '_blank')
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="max-w-4xl mx-auto">
+        <div className="card text-center py-12">
+          <Loader2 className="w-16 h-16 text-primary-600 animate-spin mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            Processing Comparison...
+          </h2>
+          <p className="text-gray-600 mb-6">
+            This may take a minute. Please wait while we analyze your design and website.
+          </p>
+
+          {/* Progress Bar */}
+          <div className="max-w-md mx-auto">
+            <div className="w-full bg-gray-200 rounded-full h-3 mb-2 overflow-hidden">
+              <div
+                className="bg-primary-600 h-full transition-all duration-300 ease-out"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+            <p className="text-sm text-gray-600">{progress}% Complete</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (error || !report) {
+    return (
+      <div className="max-w-4xl mx-auto">
+        <div className="card text-center py-12">
+          <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Error</h2>
+          <p className="text-gray-600 mb-6">{error || 'Failed to load report'}</p>
+          <button onClick={onBack} className="btn-primary">
+            Go Back
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  const { summary } = report
+
+  return (
+    <div className="max-w-7xl mx-auto">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <button
+          onClick={onBack}
+          className="flex items-center gap-2 text-gray-700 hover:text-primary-600 transition-colors"
+        >
+          <ArrowLeft className="w-5 h-5" />
+          New Comparison
+        </button>
+
+        <button onClick={downloadReport} className="btn-secondary flex items-center gap-2">
+          <Download className="w-4 h-4" />
+          Download HTML Report
+        </button>
+      </div>
+
+      {/* Match Score Card */}
+      <div className="card mb-6 text-center">
+        <h2 className="text-lg font-semibold text-gray-700 mb-4">Overall Match Score</h2>
+        <div className="relative inline-flex items-center justify-center">
+          <svg className="w-40 h-40 transform -rotate-90">
+            <circle
+              cx="80"
+              cy="80"
+              r="70"
+              stroke="#e5e7eb"
+              strokeWidth="12"
+              fill="none"
+            />
+            <circle
+              cx="80"
+              cy="80"
+              r="70"
+              stroke={summary.match_score >= 80 ? '#10b981' : summary.match_score >= 60 ? '#f59e0b' : '#ef4444'}
+              strokeWidth="12"
+              fill="none"
+              strokeDasharray={`${2 * Math.PI * 70}`}
+              strokeDashoffset={`${2 * Math.PI * 70 * (1 - summary.match_score / 100)}`}
+              strokeLinecap="round"
+            />
+          </svg>
+          <div className="absolute">
+            <p className="text-4xl font-bold text-gray-900">
+              {summary.match_score.toFixed(1)}%
+            </p>
+          </div>
+        </div>
+        <p className="text-sm text-gray-600 mt-4">
+          Based on visual similarity and structural comparison
+        </p>
+      </div>
+
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div className="card">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 mb-1">Total Differences</p>
+              <p className="text-3xl font-bold text-gray-900">{summary.total_differences}</p>
+            </div>
+            <Info className="w-8 h-8 text-gray-400" />
+          </div>
+        </div>
+
+        <div className="card border-l-4 border-red-500">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 mb-1">Critical</p>
+              <p className="text-3xl font-bold text-red-600">{summary.critical}</p>
+            </div>
+            <AlertCircle className="w-8 h-8 text-red-500" />
+          </div>
+        </div>
+
+        <div className="card border-l-4 border-yellow-500">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 mb-1">Warnings</p>
+              <p className="text-3xl font-bold text-yellow-600">{summary.warnings}</p>
+            </div>
+            <AlertCircle className="w-8 h-8 text-yellow-500" />
+          </div>
+        </div>
+
+        <div className="card border-l-4 border-blue-500">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 mb-1">Info</p>
+              <p className="text-3xl font-bold text-blue-600">{summary.info}</p>
+            </div>
+            <CheckCircle className="w-8 h-8 text-blue-500" />
+          </div>
+        </div>
+      </div>
+
+      {/* Visual Comparison */}
+      {report.figma_screenshot_url && report.website_screenshot_url && (
+        <div className="card mb-6">
+          <h3 className="text-xl font-bold text-gray-900 mb-4">
+            Visual Comparison
+          </h3>
+          <div className="rounded-lg overflow-hidden border-2 border-gray-200">
+            <ReactCompareImage
+              leftImage={report.figma_screenshot_url}
+              rightImage={report.website_screenshot_url}
+              leftImageLabel="Figma Design"
+              rightImageLabel="Website"
+              sliderLineColor="#667eea"
+            />
+          </div>
+          <div className="flex justify-between text-sm text-gray-600 mt-2">
+            <span>← Figma Design</span>
+            <span>Website →</span>
+          </div>
+        </div>
+      )}
+
+      {/* Differences List */}
+      {report.differences && report.differences.length > 0 && (
+        <DiffViewer differences={report.differences} />
+      )}
+    </div>
+  )
+}
