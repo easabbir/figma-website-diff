@@ -25,7 +25,7 @@ A powerful Python + FastAPI tool that compares Figma designs with live websites 
 - **📊 Comprehensive Reports**
   - JSON output for CI/CD integration
   - Beautiful HTML reports
-  - Side-by-side visual comparison
+  - Side-by-side visual comparison with interactive slider
   - Categorized differences (Critical/Warning/Info)
 
 - **💻 User-Friendly Interface**
@@ -33,6 +33,8 @@ A powerful Python + FastAPI tool that compares Figma designs with live websites 
   - Interactive diff viewer
   - Real-time progress bar
   - Filter and search differences
+  - **Form input caching** - preserves your inputs when navigating back
+  - Supports both `/file/` and `/design/` Figma URL formats
 
 ## 🏗️ Architecture
 
@@ -65,10 +67,12 @@ A powerful Python + FastAPI tool that compares Figma designs with live websites 
 
 ## 📋 Prerequisites
 
-- **Python** 3.11+
+- **Python** 3.13+ (3.14 not yet supported due to package compatibility)
 - **Node.js** 18+ and npm
 - **Figma API Token** ([Get here](https://www.figma.com/developers/api#access-tokens))
 - **Git** (optional)
+
+> ⚠️ **Note**: Python 3.14 is not currently supported. Use Python 3.13.7 or earlier.
 
 ## 🚀 Quick Start
 
@@ -159,7 +163,8 @@ import requests
 response = requests.post('http://localhost:8000/api/v1/compare', json={
     "figma_input": {
         "type": "url",
-        "value": "https://www.figma.com/file/ABC123/Design",
+        # Supports both /file/ and /design/ URL formats
+        "value": "https://www.figma.com/design/ABC123/Design",
         "access_token": "your-figma-token"
     },
     "website_url": "https://example.com",
@@ -349,8 +354,21 @@ playwright install --with-deps chromium
 
 ### Figma API Errors
 - Verify token is valid
-- Check file URL is correct
+- Check file URL is correct (supports both `/file/` and `/design/` formats)
 - Ensure file has public link access or token has access
+- **Rate Limit (429 Error)**: Personal tokens are limited to 2 requests per minute. Wait 1-2 minutes and retry.
+
+### Python Version Issues
+```bash
+# If you encounter package build errors, ensure you're using Python 3.13 or earlier
+python --version  # Should show 3.13.x or earlier
+
+# Create a new virtual environment with the correct Python version
+python3.13 -m venv venv
+source venv/bin/activate  # macOS/Linux
+# or
+venv\Scripts\activate  # Windows
+```
 
 ---
 
