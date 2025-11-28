@@ -35,8 +35,8 @@ export default function ReportDisplay({ jobId, onBack }: ReportDisplayProps) {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    let progressInterval: NodeJS.Timeout
-    let reportPollInterval: NodeJS.Timeout
+    let progressInterval: ReturnType<typeof setInterval>
+    let reportPollInterval: ReturnType<typeof setInterval>
 
     const fetchProgress = async () => {
       try {
@@ -55,6 +55,8 @@ export default function ReportDisplay({ jobId, onBack }: ReportDisplayProps) {
     const fetchReport = async () => {
       try {
         const response = await axios.get(`/api/v1/report/${jobId}`)
+        console.log('Report response:', response.data)
+        console.log('Summary:', response.data.summary)
         setReport(response.data)
         setLoading(false)
         clearInterval(reportPollInterval)
@@ -130,6 +132,33 @@ export default function ReportDisplay({ jobId, onBack }: ReportDisplayProps) {
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Error</h2>
           <p className="text-gray-600 mb-6">{error || 'Failed to load report'}</p>
           <button onClick={onBack} className="btn-primary">
+            Go Back
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // Add safety check for summary
+  if (!report.summary || typeof report.summary !== 'object') {
+    console.error('Report missing or invalid summary:', {
+      report,
+      hasSummary: !!report.summary,
+      summaryType: typeof report.summary,
+      summaryKeys: report.summary ? Object.keys(report.summary) : 'N/A'
+    })
+    return (
+      <div className="max-w-4xl mx-auto">
+        <div className="card text-center py-12">
+          <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Invalid Report Data</h2>
+          <p className="text-gray-600 mb-6">
+            The report data is incomplete or invalid. Check browser console for details.
+          </p>
+          <pre className="text-xs text-left bg-gray-100 p-4 rounded mt-4 overflow-auto max-h-40">
+            {JSON.stringify(report, null, 2)}
+          </pre>
+          <button onClick={onBack} className="btn-primary mt-4">
             Go Back
           </button>
         </div>

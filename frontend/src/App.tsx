@@ -10,18 +10,29 @@ export interface ComparisonResult {
   status: string
 }
 
+export interface CachedFormData {
+  figmaUrl: string
+  figmaToken: string
+  websiteUrl: string
+  viewportWidth: string
+  viewportHeight: string
+  comparisonMode: string
+}
+
 function App() {
   const [comparisonResult, setComparisonResult] = useState<ComparisonResult | null>(null)
   const [showReport, setShowReport] = useState(false)
+  const [cachedFormData, setCachedFormData] = useState<CachedFormData | null>(null)
 
-  const handleComparisonStart = (result: ComparisonResult) => {
+  const handleComparisonStart = (result: ComparisonResult, formData: CachedFormData) => {
+    setCachedFormData(formData)
     setComparisonResult(result)
     setShowReport(true)
   }
 
   const handleBack = () => {
     setShowReport(false)
-    setComparisonResult(null)
+    // Keep cachedFormData so form can restore it
   }
 
   return (
@@ -30,7 +41,10 @@ function App() {
       
       <main className="container mx-auto px-4 py-8 max-w-7xl">
         {!showReport ? (
-          <ComparisonForm onComparisonStart={handleComparisonStart} />
+          <ComparisonForm 
+            onComparisonStart={handleComparisonStart} 
+            cachedData={cachedFormData}
+          />
         ) : (
           <ReportDisplay jobId={comparisonResult?.jobId || ''} onBack={handleBack} />
         )}

@@ -1,21 +1,43 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Play, Figma, Globe, Settings } from 'lucide-react'
 import { toast } from 'react-toastify'
 import axios from 'axios'
 
-interface ComparisonFormProps {
-  onComparisonStart: (result: { jobId: string; status: string }) => void
+interface CachedFormData {
+  figmaUrl: string
+  figmaToken: string
+  websiteUrl: string
+  viewportWidth: string
+  viewportHeight: string
+  comparisonMode: string
 }
 
-export default function ComparisonForm({ onComparisonStart }: ComparisonFormProps) {
-  const [figmaUrl, setFigmaUrl] = useState('')
-  const [figmaToken, setFigmaToken] = useState('')
-  const [websiteUrl, setWebsiteUrl] = useState('')
-  const [viewportWidth, setViewportWidth] = useState('1920')
-  const [viewportHeight, setViewportHeight] = useState('1080')
-  const [comparisonMode, setComparisonMode] = useState('hybrid')
+interface ComparisonFormProps {
+  onComparisonStart: (result: { jobId: string; status: string }, formData: CachedFormData) => void
+  cachedData: CachedFormData | null
+}
+
+export default function ComparisonForm({ onComparisonStart, cachedData }: ComparisonFormProps) {
+  const [figmaUrl, setFigmaUrl] = useState(cachedData?.figmaUrl || '')
+  const [figmaToken, setFigmaToken] = useState(cachedData?.figmaToken || '')
+  const [websiteUrl, setWebsiteUrl] = useState(cachedData?.websiteUrl || '')
+  const [viewportWidth, setViewportWidth] = useState(cachedData?.viewportWidth || '1920')
+  const [viewportHeight, setViewportHeight] = useState(cachedData?.viewportHeight || '1080')
+  const [comparisonMode, setComparisonMode] = useState(cachedData?.comparisonMode || 'hybrid')
   const [loading, setLoading] = useState(false)
   const [showAdvanced, setShowAdvanced] = useState(false)
+
+  // Restore cached data when it changes
+  useEffect(() => {
+    if (cachedData) {
+      setFigmaUrl(cachedData.figmaUrl)
+      setFigmaToken(cachedData.figmaToken)
+      setWebsiteUrl(cachedData.websiteUrl)
+      setViewportWidth(cachedData.viewportWidth)
+      setViewportHeight(cachedData.viewportHeight)
+      setComparisonMode(cachedData.comparisonMode)
+    }
+  }, [cachedData])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -52,10 +74,20 @@ export default function ComparisonForm({ onComparisonStart }: ComparisonFormProp
       })
 
       toast.success('Comparison started successfully!')
-      onComparisonStart({
-        jobId: response.data.job_id,
-        status: response.data.status,
-      })
+      onComparisonStart(
+        {
+          jobId: response.data.job_id,
+          status: response.data.status,
+        },
+        {
+          figmaUrl,
+          figmaToken,
+          websiteUrl,
+          viewportWidth,
+          viewportHeight,
+          comparisonMode,
+        }
+      )
     } catch (error: any) {
       console.error('Error starting comparison:', error)
       toast.error(error.response?.data?.detail || 'Failed to start comparison')
@@ -74,6 +106,11 @@ export default function ComparisonForm({ onComparisonStart }: ComparisonFormProp
           <p className="text-gray-600">
             Enter your Figma design and website URL to begin the UI comparison
           </p>
+          {cachedData && (
+            <div className="mt-3 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-700">
+              ℹ️ Previous inputs restored
+            </div>
+          )}
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">

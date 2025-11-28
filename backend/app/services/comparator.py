@@ -117,14 +117,32 @@ class UIComparator:
         # Calculate summary
         summary = self._calculate_summary(differences, similarity_scores)
         
+        # Determine screenshot URLs
+        figma_screenshot_url = None
+        website_screenshot_url = None
+        
+        if figma_screenshot:
+            # Get the first Figma screenshot path
+            if isinstance(figma_screenshot, dict):
+                first_img = list(figma_screenshot.values())[0]
+                # Extract relative path from full path
+                img_path = Path(first_img)
+                figma_screenshot_url = f"/static/{job_id}/figma/{img_path.name}"
+            else:
+                figma_screenshot_url = f"/static/{job_id}/figma/screenshot.png"
+        
+        if website_screenshot:
+            # Website screenshot is typically at website/website_screenshot.png
+            website_screenshot_url = f"/static/{job_id}/website/website_screenshot.png"
+        
         # Create report
         report = DiffReport(
             job_id=job_id,
             status="completed",
             summary=summary,
             differences=differences,
-            figma_screenshot_url=f"/static/{job_id}/figma.png" if figma_screenshot else None,
-            website_screenshot_url=f"/static/{job_id}/website.png" if website_screenshot else None,
+            figma_screenshot_url=figma_screenshot_url,
+            website_screenshot_url=website_screenshot_url,
             visual_diff_url=visual_diff_url
         )
         

@@ -32,14 +32,20 @@ class FigmaExtractor:
         """
         Extract file key from Figma URL.
         
-        Example: https://www.figma.com/file/ABC123/Design-Name -> ABC123
+        Supports both old and new Figma URL formats:
+        - https://www.figma.com/file/ABC123/Design-Name -> ABC123
+        - https://www.figma.com/design/ABC123/Design-Name -> ABC123
         """
         try:
+            # Handle both /file/ and /design/ URL formats
             if "/file/" in figma_url:
                 parts = figma_url.split("/file/")[1].split("/")
                 return parts[0]
-        except:
-            pass
+            elif "/design/" in figma_url:
+                parts = figma_url.split("/design/")[1].split("/")
+                return parts[0]
+        except Exception as e:
+            logger.error(f"Error extracting file key from URL: {e}")
         return None
     
     def get_file_data(self, file_key: str) -> Dict:
@@ -58,6 +64,12 @@ class FigmaExtractor:
             response = self.session.get(url)
             response.raise_for_status()
             return response.json()
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 429:
+                logger.error("Figma API rate limit exceeded. Please wait a minute and try again.")
+                raise ValueError("Figma API rate limit exceeded. Please wait 1-2 minutes and try again. Personal tokens are limited to 2 requests per minute.")
+            logger.error(f"HTTP error fetching Figma file: {e}")
+            raise
         except requests.exceptions.RequestException as e:
             logger.error(f"Error fetching Figma file: {e}")
             raise
