@@ -1,9 +1,16 @@
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import field_validator
 from functools import lru_cache
+from typing import List
 
 
 class Settings(BaseSettings):
     """Application configuration settings."""
+    
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        case_sensitive=True
+    )
     
     # Application
     APP_NAME: str = "Figma-Website UI Comparison Tool"
@@ -14,12 +21,18 @@ class Settings(BaseSettings):
     API_V1_PREFIX: str = "/api/v1"
     
     # CORS
-    CORS_ORIGINS: list = [
+    CORS_ORIGINS: List[str] = [
         "http://localhost:3000",
         "http://localhost:5173",
         "http://127.0.0.1:3000",
         "http://127.0.0.1:5173",
     ]
+    
+    @field_validator('CORS_ORIGINS', mode='before')
+    def parse_cors_origins(cls, v):
+        if isinstance(v, str):
+            return [origin.strip() for origin in v.split(',')]
+        return v
     
     # File Storage
     UPLOAD_DIR: str = "uploads"
@@ -49,10 +62,6 @@ class Settings(BaseSettings):
     # Celery
     CELERY_BROKER_URL: str = "redis://localhost:6379/0"
     CELERY_RESULT_BACKEND: str = "redis://localhost:6379/0"
-    
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
 
 
 @lru_cache()
