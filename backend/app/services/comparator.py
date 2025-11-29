@@ -352,13 +352,29 @@ class UIComparator:
         )
         
         # Calculate overall match score
-        if similarity_scores:
+        if similarity_scores and similarity_scores.get("overall"):
             visual_score = similarity_scores.get("overall", 100)
         else:
+            # If no visual comparison was done, base score on differences only
             visual_score = 100
         
-        # Factor in number of differences
-        difference_penalty = min(50, len(differences) * 2)  # Max 50% penalty
-        summary.match_score = max(0, min(100, visual_score - difference_penalty))
+        logger.info(f"Visual score: {visual_score}, Similarity scores: {similarity_scores}")
+        
+        # Calculate match score based on visual similarity and differences
+        # Visual similarity contributes 60%, structural differences contribute 40%
+        visual_component = visual_score * 0.6
+        
+        # Structural component: penalize based on differences
+        # Critical: -3 points, Warning: -1.5 points, Info: -0.5 points
+        critical_count = sum(1 for d in differences if d.severity == SeverityLevel.CRITICAL)
+        warning_count = sum(1 for d in differences if d.severity == SeverityLevel.WARNING)
+        info_count = sum(1 for d in differences if d.severity == SeverityLevel.INFO)
+        
+        structural_penalty = (critical_count * 3) + (warning_count * 1.5) + (info_count * 0.5)
+        structural_component = max(0, 40 - structural_penalty)
+        
+        summary.match_score = round(max(0, min(100, visual_component + structural_component)), 1)
+        
+        logger.info(f"Match score calculation: visual={visual_component:.1f}, structural={structural_component:.1f}, total={summary.match_score:.1f}")
         
         return summary
