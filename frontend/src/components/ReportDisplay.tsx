@@ -36,12 +36,12 @@ export default function ReportDisplay({ jobId, onBack }: ReportDisplayProps) {
 
   useEffect(() => {
     let progressInterval: ReturnType<typeof setInterval>
-    let reportPollInterval: ReturnType<typeof setInterval>
 
     const fetchProgress = async () => {
       try {
         const response = await axios.get(`/api/v1/progress/${jobId}`)
         setProgress(response.data.progress)
+        console.log('Progress update:', response.data.status, response.data.progress + '%')
 
         if (response.data.status === 'completed' || response.data.status === 'failed') {
           clearInterval(progressInterval)
@@ -55,11 +55,13 @@ export default function ReportDisplay({ jobId, onBack }: ReportDisplayProps) {
     const fetchReport = async () => {
       try {
         const response = await axios.get(`/api/v1/report/${jobId}`)
+        
+        // Only process if we got a complete report (status 200)
         console.log('Report response:', response.data)
         console.log('Summary:', response.data.summary)
+        
         setReport(response.data)
         setLoading(false)
-        clearInterval(reportPollInterval)
 
         if (response.data.status === 'failed') {
           setError(response.data.error || 'Comparison failed')
@@ -69,7 +71,8 @@ export default function ReportDisplay({ jobId, onBack }: ReportDisplayProps) {
         }
       } catch (err: any) {
         if (err.response?.status === 202) {
-          // Still processing
+          // Still processing - this shouldn't happen since we only call after progress shows complete
+          console.log('Unexpected 202 response when fetching report')
           return
         }
         console.error('Error fetching report:', err)
@@ -78,16 +81,14 @@ export default function ReportDisplay({ jobId, onBack }: ReportDisplayProps) {
       }
     }
 
-    // Poll for progress
+    // Poll for progress only - report will be fetched when progress shows completion
     progressInterval = setInterval(fetchProgress, 1000)
-    reportPollInterval = setInterval(fetchReport, 2000)
 
     // Initial fetch
     fetchProgress()
 
     return () => {
       clearInterval(progressInterval)
-      clearInterval(reportPollInterval)
     }
   }, [jobId])
 
