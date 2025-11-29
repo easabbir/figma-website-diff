@@ -2,13 +2,15 @@
 
 A powerful Python + FastAPI tool that compares Figma designs with live websites to detect visual and UI inconsistencies. Features a modern React frontend with real-time progress updates.
 
-![Version](https://img.shields.io/badge/version-1.0.1-blue.svg)
+![Version](https://img.shields.io/badge/version-1.0.2-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.13-blue.svg)
 ![React](https://img.shields.io/badge/react-18.2-blue.svg)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.115-green.svg)
 
-## 🆕 Recent Updates (v1.0.1)
+## 🆕 Recent Updates (v1.0.2)
 
+- ✅ **Fixed white screen crash** - Replaced incompatible image comparison library with React 18 compatible version
+- ✅ **Added ErrorBoundary** - Graceful error handling instead of white screens
 - ✅ **Fixed race condition** - Report now loads correctly without "Invalid Report Data" error
 - ✅ **Form input caching** - Your inputs are preserved when navigating back from results
 - ✅ **Figma URL support** - Now supports both `/file/` and `/design/` URL formats
@@ -381,9 +383,12 @@ venv\Scripts\activate  # Windows
 
 ### "Invalid Report Data" or White Screen
 If you see "Invalid Report Data" or a white screen after comparison:
-- **Cause**: This was a race condition where the frontend tried to fetch the report before it was ready
-- **Fixed**: The latest version only fetches the report after the progress endpoint confirms completion
-- **Solution**: Refresh the page and try again. The issue should be resolved in the latest version.
+- **Cause**: Race condition or incompatible React library (react-compare-image)
+- **Fixed in v1.0.2**: 
+  - Replaced `react-compare-image` with `react-compare-slider` (React 18 compatible)
+  - Added ErrorBoundary to catch and display errors gracefully
+  - Fixed report fetching to wait for completion
+- **Solution**: Update to the latest version and refresh the page. The issue is resolved.
 
 ### Comparison Takes Too Long
 - Large Figma files may take 30-60 seconds to process
