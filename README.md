@@ -2,10 +2,19 @@
 
 A powerful Python + FastAPI tool that compares Figma designs with live websites to detect visual and UI inconsistencies. Features a modern React frontend with real-time progress updates.
 
-![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
-![Python](https://img.shields.io/badge/python-3.11-blue.svg)
+![Version](https://img.shields.io/badge/version-1.0.1-blue.svg)
+![Python](https://img.shields.io/badge/python-3.13-blue.svg)
 ![React](https://img.shields.io/badge/react-18.2-blue.svg)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.104-green.svg)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.115-green.svg)
+
+## 🆕 Recent Updates (v1.0.1)
+
+- ✅ **Fixed race condition** - Report now loads correctly without "Invalid Report Data" error
+- ✅ **Form input caching** - Your inputs are preserved when navigating back from results
+- ✅ **Figma URL support** - Now supports both `/file/` and `/design/` URL formats
+- ✅ **Better error handling** - Clear messages for rate limits and API errors
+- ✅ **Screenshot URLs fixed** - Visual comparison slider now works properly
+- ✅ **Improved polling** - More efficient progress tracking without premature fetches
 
 ## ✨ Features
 
@@ -369,6 +378,18 @@ source venv/bin/activate  # macOS/Linux
 # or
 venv\Scripts\activate  # Windows
 ```
+
+### "Invalid Report Data" or White Screen
+If you see "Invalid Report Data" or a white screen after comparison:
+- **Cause**: This was a race condition where the frontend tried to fetch the report before it was ready
+- **Fixed**: The latest version only fetches the report after the progress endpoint confirms completion
+- **Solution**: Refresh the page and try again. The issue should be resolved in the latest version.
+
+### Comparison Takes Too Long
+- Large Figma files may take 30-60 seconds to process
+- Complex websites with many elements take longer to analyze
+- Visual comparison (pixel diff) is the most time-intensive step
+- Check the progress bar for real-time status updates
 
 ---
 
