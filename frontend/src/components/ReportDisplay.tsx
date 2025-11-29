@@ -2,7 +2,10 @@ import { useState, useEffect } from 'react'
 import { ArrowLeft, Download, CheckCircle, AlertCircle, Info, Loader2 } from 'lucide-react'
 import axios from 'axios'
 import { toast } from 'react-toastify'
-import ReactCompareImage from 'react-compare-image'
+import {
+  ReactCompareSlider,
+  ReactCompareSliderImage
+} from 'react-compare-slider'
 import DiffViewer from './DiffViewer'
 
 interface ReportDisplayProps {
@@ -276,12 +279,23 @@ export default function ReportDisplay({ jobId, onBack }: ReportDisplayProps) {
             Visual Comparison
           </h3>
           <div className="rounded-lg overflow-hidden border-2 border-gray-200">
-            <ReactCompareImage
-              leftImage={report.figma_screenshot_url}
-              rightImage={report.website_screenshot_url}
-              leftImageLabel="Figma Design"
-              rightImageLabel="Website"
-              sliderLineColor="#667eea"
+            <ReactCompareSlider
+              itemOne={
+                <ReactCompareSliderImage
+                  src={report.figma_screenshot_url}
+                  alt="Figma Design"
+                />
+              }
+              itemTwo={
+                <ReactCompareSliderImage
+                  src={report.website_screenshot_url}
+                  alt="Website"
+                />
+              }
+              style={{
+                width: '100%',
+                height: 'auto',
+              }}
             />
           </div>
           <div className="flex justify-between text-sm text-gray-600 mt-2">
