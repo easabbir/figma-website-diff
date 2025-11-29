@@ -41,14 +41,17 @@ export default function ReportDisplay({ jobId, onBack }: ReportDisplayProps) {
       try {
         const response = await axios.get(`/api/v1/progress/${jobId}`)
         setProgress(response.data.progress)
-        console.log('Progress update:', response.data.status, response.data.progress + '%')
+        console.log('Progress update:', response.data.status, response.data.progress + '%', response.data.message)
 
         if (response.data.status === 'completed' || response.data.status === 'failed') {
           clearInterval(progressInterval)
           fetchReport()
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error('Error fetching progress:', err)
+        clearInterval(progressInterval)
+        setError(`Failed to fetch progress: ${err.message}`)
+        setLoading(false)
       }
     }
 
