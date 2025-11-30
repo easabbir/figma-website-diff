@@ -5,8 +5,55 @@ from typing import Dict, List, Optional, Any
 import json
 from pathlib import Path
 import logging
+import hashlib
+import time
+from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
+
+# Global cache for Figma API responses
+# Structure: {cache_key: {"data": response_data, "timestamp": datetime, "file_key": str}}
+_figma_cache: Dict[str, Dict] = {}
+CACHE_DURATION_MINUTES = 30  # Cache responses for 30 minutes
+
+
+def get_cache_key(file_key: str, node_id: Optional[str] = None, endpoint: str = "file") -> str:
+    """Generate a cache key for Figma API requests."""
+    key_parts = [file_key, endpoint]
+    if node_id:
+        key_parts.append(node_id)
+    return hashlib.md5(":".join(key_parts).encode()).hexdigest()
+
+
+def get_cached_response(cache_key: str) -> Optional[Dict]:
+    """Get cached response if valid."""
+    if cache_key in _figma_cache:
+        cached = _figma_cache[cache_key]
+        if datetime.now() - cached["timestamp"] < timedelta(minutes=CACHE_DURATION_MINUTES):
+            logger.info(f"Using cached Figma response (key: {cache_key[:8]}...)")
+            return cached["data"]
+        else:
+            # Cache expired
+            del _figma_cache[cache_key]
+    return None
+
+
+def set_cached_response(cache_key: str, data: Dict, file_key: str):
+    """Cache a Figma API response."""
+    _figma_cache[cache_key] = {
+        "data": data,
+        "timestamp": datetime.now(),
+        "file_key": file_key
+    }
+    logger.info(f"Cached Figma response (key: {cache_key[:8]}..., expires in {CACHE_DURATION_MINUTES} min)")
+
+
+def clear_cache_for_file(file_key: str):
+    """Clear all cached responses for a specific file."""
+    keys_to_delete = [k for k, v in _figma_cache.items() if v.get("file_key") == file_key]
+    for key in keys_to_delete:
+        del _figma_cache[key]
+    logger.info(f"Cleared {len(keys_to_delete)} cached responses for file {file_key}")
 
 
 class FigmaExtractor:
@@ -21,6 +68,7 @@ class FigmaExtractor:
         """
         self.api_base_url = api_base_url
         self.session = requests.Session()
+        self.use_cache = True  # Enable caching by default
     
     def set_access_token(self, token: str):
         """Set the Figma API access token."""
@@ -48,59 +96,129 @@ class FigmaExtractor:
             logger.error(f"Error extracting file key from URL: {e}")
         return None
     
-    def get_file_data(self, file_key: str) -> Dict:
+    def get_file_data(self, file_key: str, force_refresh: bool = False) -> Dict:
         """
-        Fetch file data from Figma API.
+        Fetch file data from Figma API with caching.
         
         Args:
             file_key: Figma file key
+            force_refresh: If True, bypass cache and fetch fresh data
             
         Returns:
             Complete file data from Figma API
         """
+        # Check cache first
+        cache_key = get_cache_key(file_key, endpoint="file")
+        if self.use_cache and not force_refresh:
+            cached = get_cached_response(cache_key)
+            if cached:
+                return cached
+        
         url = f"{self.api_base_url}/files/{file_key}"
         
         try:
             response = self.session.get(url)
             response.raise_for_status()
-            return response.json()
+            data = response.json()
+            
+            # Cache the response
+            if self.use_cache:
+                set_cached_response(cache_key, data, file_key)
+            
+            return data
         except requests.exceptions.HTTPError as e:
             if e.response.status_code == 429:
                 logger.error("Figma API rate limit exceeded. Please wait a minute and try again.")
-                raise ValueError("Figma API rate limit exceeded. Please wait 1-2 minutes and try again. Personal tokens are limited to 2 requests per minute.")
+                raise ValueError("Figma API rate limit exceeded. Please wait 1-2 minutes and try again. Personal tokens are limited to 2 requests per minute. TIP: The same design is cached for 30 minutes - try again with the same URL!")
             logger.error(f"HTTP error fetching Figma file: {e}")
             raise
         except requests.exceptions.RequestException as e:
             logger.error(f"Error fetching Figma file: {e}")
             raise
     
-    def get_node_data(self, file_key: str, node_id: str) -> Dict:
+    def get_node_data(self, file_key: str, node_id: str, force_refresh: bool = False) -> Dict:
         """
-        Fetch specific node data from Figma API.
+        Fetch specific node data from Figma API with caching.
         
         Args:
             file_key: Figma file key
             node_id: Node ID to fetch
+            force_refresh: If True, bypass cache
             
         Returns:
             Node data
         """
+        # Check cache first
+        cache_key = get_cache_key(file_key, node_id=node_id, endpoint="node")
+        if self.use_cache and not force_refresh:
+            cached = get_cached_response(cache_key)
+            if cached:
+                return cached
+        
         url = f"{self.api_base_url}/files/{file_key}/nodes"
         params = {"ids": node_id}
         
         try:
-            response = self.session.get(url, params=params)
-            response.raise_for_status()
-            return response.json()
+            response = self._make_request_with_retry(url, params=params)
+            data = response.json()
+            
+            # Cache the response
+            if self.use_cache:
+                set_cached_response(cache_key, data, file_key)
+            
+            return data
         except requests.exceptions.RequestException as e:
             logger.error(f"Error fetching Figma node: {e}")
             raise
+    
+    def _make_request_with_retry(self, url: str, params: Optional[Dict] = None, 
+                                  max_retries: int = 3, base_delay: float = 30.0) -> requests.Response:
+        """
+        Make a request with exponential backoff retry on rate limit.
+        
+        Args:
+            url: Request URL
+            params: Query parameters
+            max_retries: Maximum number of retries
+            base_delay: Base delay in seconds (will be multiplied for each retry)
+            
+        Returns:
+            Response object
+        """
+        last_exception = None
+        
+        for attempt in range(max_retries + 1):
+            try:
+                response = self.session.get(url, params=params)
+                
+                if response.status_code == 429:
+                    if attempt < max_retries:
+                        delay = base_delay * (2 ** attempt)  # Exponential backoff
+                        logger.warning(f"Rate limited. Waiting {delay:.0f}s before retry {attempt + 1}/{max_retries}...")
+                        time.sleep(delay)
+                        continue
+                    else:
+                        response.raise_for_status()
+                
+                response.raise_for_status()
+                return response
+                
+            except requests.exceptions.HTTPError as e:
+                last_exception = e
+                if e.response.status_code == 429 and attempt < max_retries:
+                    delay = base_delay * (2 ** attempt)
+                    logger.warning(f"Rate limited. Waiting {delay:.0f}s before retry {attempt + 1}/{max_retries}...")
+                    time.sleep(delay)
+                else:
+                    raise
+        
+        raise last_exception
     
     def export_image(self, file_key: str, node_ids: List[str], 
                     scale: int = 2, format: str = "png", 
                     output_dir: Optional[Path] = None) -> Dict[str, str]:
         """
-        Export images for specific nodes.
+        Export images for specific nodes with caching.
         
         Args:
             file_key: Figma file key
@@ -112,47 +230,64 @@ class FigmaExtractor:
         Returns:
             Dictionary mapping node IDs to image URLs or paths
         """
-        url = f"{self.api_base_url}/images/{file_key}"
-        params = {
-            "ids": ",".join(node_ids),
-            "scale": scale,
-            "format": format
-        }
+        # Check cache for image URLs
+        cache_key = get_cache_key(file_key, node_id=",".join(sorted(node_ids)), endpoint=f"images_{scale}_{format}")
         
-        try:
-            response = self.session.get(url, params=params)
-            response.raise_for_status()
-            data = response.json()
+        cached_urls = None
+        if self.use_cache:
+            cached_urls = get_cached_response(cache_key)
+        
+        if cached_urls:
+            image_urls = cached_urls
+        else:
+            url = f"{self.api_base_url}/images/{file_key}"
+            params = {
+                "ids": ",".join(node_ids),
+                "scale": scale,
+                "format": format
+            }
             
-            image_urls = data.get("images", {})
-            
-            # Download images if output directory specified
-            if output_dir:
-                output_dir = Path(output_dir)
-                output_dir.mkdir(parents=True, exist_ok=True)
+            try:
+                response = self._make_request_with_retry(url, params=params)
+                data = response.json()
+                image_urls = data.get("images", {})
                 
-                result = {}
-                for node_id, img_url in image_urls.items():
-                    if img_url:
-                        img_response = requests.get(img_url)
-                        img_response.raise_for_status()
-                        
-                        # Sanitize node ID for filename
-                        safe_id = node_id.replace(":", "_").replace(";", "_")
-                        img_path = output_dir / f"{safe_id}.{format}"
-                        
-                        with open(img_path, "wb") as f:
-                            f.write(img_response.content)
-                        
+                # Cache the URLs
+                if self.use_cache:
+                    set_cached_response(cache_key, image_urls, file_key)
+                    
+            except requests.exceptions.RequestException as e:
+                logger.error(f"Error exporting Figma images: {e}")
+                raise
+        
+        # Download images if output directory specified
+        if output_dir:
+            output_dir = Path(output_dir)
+            output_dir.mkdir(parents=True, exist_ok=True)
+            
+            result = {}
+            for node_id, img_url in image_urls.items():
+                if img_url:
+                    # Check if image already exists locally
+                    safe_id = node_id.replace(":", "_").replace(";", "_")
+                    img_path = output_dir / f"{safe_id}.{format}"
+                    
+                    if img_path.exists():
+                        logger.info(f"Using cached image: {img_path}")
                         result[node_id] = str(img_path)
-                
-                return result
+                        continue
+                    
+                    img_response = requests.get(img_url)
+                    img_response.raise_for_status()
+                    
+                    with open(img_path, "wb") as f:
+                        f.write(img_response.content)
+                    
+                    result[node_id] = str(img_path)
             
-            return image_urls
-            
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Error exporting Figma images: {e}")
-            raise
+            return result
+        
+        return image_urls
     
     def extract_design_tokens(self, node: Dict) -> Dict:
         """
