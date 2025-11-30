@@ -4,6 +4,7 @@ import 'react-toastify/dist/ReactToastify.css'
 import ComparisonForm from './components/ComparisonForm'
 import ReportDisplay from './components/ReportDisplay'
 import Header from './components/Header'
+import HistoryView from './components/HistoryView'
 
 export interface ComparisonResult {
   jobId: string
@@ -22,6 +23,7 @@ export interface CachedFormData {
 function App() {
   const [comparisonResult, setComparisonResult] = useState<ComparisonResult | null>(null)
   const [showReport, setShowReport] = useState(false)
+  const [showHistory, setShowHistory] = useState(false)
   const [cachedFormData, setCachedFormData] = useState<CachedFormData | null>(null)
 
   const handleComparisonStart = (result: ComparisonResult, formData: CachedFormData) => {
@@ -35,6 +37,12 @@ function App() {
     // Keep cachedFormData so form can restore it
   }
 
+  const handleSelectFromHistory = (jobId: string) => {
+    setComparisonResult({ jobId, status: 'completed' })
+    setShowReport(true)
+    setShowHistory(false)
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       <Header />
@@ -44,11 +52,20 @@ function App() {
           <ComparisonForm 
             onComparisonStart={handleComparisonStart} 
             cachedData={cachedFormData}
+            onShowHistory={() => setShowHistory(true)}
           />
         ) : (
           <ReportDisplay jobId={comparisonResult?.jobId || ''} onBack={handleBack} />
         )}
       </main>
+
+      {/* History Modal */}
+      {showHistory && (
+        <HistoryView
+          onSelectJob={handleSelectFromHistory}
+          onClose={() => setShowHistory(false)}
+        />
+      )}
 
       <ToastContainer
         position="top-right"

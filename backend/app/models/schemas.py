@@ -122,3 +122,98 @@ class ProgressUpdate(BaseModel):
     progress: int = Field(0, ge=0, le=100)
     message: str
     current_step: Optional[str] = None
+
+
+# ============ New Schemas for Enhanced Features ============
+
+class ResponsiveViewport(BaseModel):
+    """Viewport configuration for responsive testing."""
+    name: str = Field(..., description="Viewport name (e.g., 'mobile', 'tablet', 'desktop')")
+    width: int = Field(..., ge=320, le=3840)
+    height: int = Field(..., ge=240, le=2160)
+
+
+class ResponsiveComparisonRequest(BaseModel):
+    """Request model for responsive (multi-viewport) comparison."""
+    figma_input: FigmaInput
+    website_url: str
+    viewports: List[ResponsiveViewport] = Field(
+        default=[
+            ResponsiveViewport(name="mobile", width=375, height=667),
+            ResponsiveViewport(name="tablet", width=768, height=1024),
+            ResponsiveViewport(name="desktop", width=1920, height=1080),
+        ],
+        description="List of viewports to test"
+    )
+    options: Optional[ComparisonOptions] = Field(default_factory=ComparisonOptions)
+    project_name: Optional[str] = Field(None, description="Project name for grouping")
+    tags: Optional[List[str]] = Field(None, description="Tags for filtering")
+
+
+class ViewportResult(BaseModel):
+    """Result for a single viewport in responsive comparison."""
+    viewport_name: str
+    viewport_width: int
+    viewport_height: int
+    match_score: float = 0.0
+    total_differences: int = 0
+    critical: int = 0
+    warnings: int = 0
+    info: int = 0
+    figma_screenshot_url: Optional[str] = None
+    website_screenshot_url: Optional[str] = None
+    visual_diff_url: Optional[str] = None
+    differences: List[Difference] = Field(default_factory=list)
+
+
+class ResponsiveReport(BaseModel):
+    """Complete responsive comparison report."""
+    job_id: str
+    status: Literal["processing", "completed", "failed"] = "processing"
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    completed_at: Optional[datetime] = None
+    figma_url: Optional[str] = None
+    website_url: str
+    project_name: Optional[str] = None
+    viewport_results: List[ViewportResult] = Field(default_factory=list)
+    overall_match_score: float = 0.0
+    total_differences: int = 0
+    report_pdf_url: Optional[str] = None
+    error: Optional[str] = None
+
+
+class HistoryItem(BaseModel):
+    """Comparison history item."""
+    id: str
+    job_id: str
+    figma_url: Optional[str] = None
+    website_url: str
+    viewport_name: str = "desktop"
+    viewport_width: int = 1920
+    viewport_height: int = 1080
+    match_score: float = 0.0
+    total_differences: int = 0
+    critical_count: int = 0
+    warning_count: int = 0
+    info_count: int = 0
+    status: str = "pending"
+    project_name: Optional[str] = None
+    tags: Optional[List[str]] = None
+    created_at: datetime
+    completed_at: Optional[datetime] = None
+
+
+class HistoryResponse(BaseModel):
+    """Response for history listing."""
+    items: List[HistoryItem]
+    total: int
+    page: int = 1
+    limit: int = 50
+
+
+class HistoryStats(BaseModel):
+    """Overall statistics for comparison history."""
+    total_comparisons: int = 0
+    avg_match_score: float = 0.0
+    total_differences_found: int = 0
+    unique_websites: int = 0

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Play, Figma, Globe, Settings } from 'lucide-react'
+import { Play, Figma, Globe, Settings, Clock } from 'lucide-react'
 import { toast } from 'react-toastify'
 import axios from 'axios'
 
@@ -15,9 +15,10 @@ interface CachedFormData {
 interface ComparisonFormProps {
   onComparisonStart: (result: { jobId: string; status: string }, formData: CachedFormData) => void
   cachedData: CachedFormData | null
+  onShowHistory?: () => void
 }
 
-export default function ComparisonForm({ onComparisonStart, cachedData }: ComparisonFormProps) {
+export default function ComparisonForm({ onComparisonStart, cachedData, onShowHistory }: ComparisonFormProps) {
   const [figmaUrl, setFigmaUrl] = useState(cachedData?.figmaUrl || '')
   const [figmaToken, setFigmaToken] = useState(cachedData?.figmaToken || '')
   const [websiteUrl, setWebsiteUrl] = useState(cachedData?.websiteUrl || '')
@@ -100,12 +101,26 @@ export default function ComparisonForm({ onComparisonStart, cachedData }: Compar
     <div className="max-w-4xl mx-auto">
       <div className="card">
         <div className="mb-6">
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">
-            Start New Comparison
-          </h2>
-          <p className="text-gray-600">
-            Enter your Figma design and website URL to begin the UI comparison
-          </p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                Start New Comparison
+              </h2>
+              <p className="text-gray-600">
+                Enter your Figma design and website URL to begin the UI comparison
+              </p>
+            </div>
+            {onShowHistory && (
+              <button
+                type="button"
+                onClick={onShowHistory}
+                className="btn-secondary flex items-center gap-2"
+              >
+                <Clock className="w-4 h-4" />
+                History
+              </button>
+            )}
+          </div>
           {cachedData && (
             <div className="mt-3 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-700">
               ℹ️ Previous inputs restored

@@ -2,13 +2,20 @@
 
 A powerful Python + FastAPI tool that compares Figma designs with live websites to detect visual and UI inconsistencies. Features a modern React frontend with real-time progress updates.
 
-![Version](https://img.shields.io/badge/version-1.0.2-blue.svg)
+![Version](https://img.shields.io/badge/version-1.1.0-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.13-blue.svg)
 ![React](https://img.shields.io/badge/react-18.2-blue.svg)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.115-green.svg)
 
-## 🆕 Recent Updates (v1.0.2)
+## 🆕 Recent Updates (v1.1.0)
 
+### New Features
+- ✅ **PDF Export** - Download professional PDF reports with executive summary and visual comparisons
+- ✅ **Comparison History** - View and manage past comparisons with SQLite storage
+- ✅ **Responsive Mode** - Compare designs across multiple viewports (mobile, tablet, desktop) in one run
+- ✅ **History Dashboard** - Statistics, filtering, and quick access to past reports
+
+### Bug Fixes (v1.0.2)
 - ✅ **Fixed white screen crash** - Replaced incompatible image comparison library with React 18 compatible version
 - ✅ **Added ErrorBoundary** - Graceful error handling instead of white screens
 - ✅ **Fixed race condition** - Report now loads correctly without "Invalid Report Data" error
@@ -163,7 +170,8 @@ docker-compose up --build
    - Monitor real-time progress
    - View overall match score
    - Explore categorized differences
-   - Download HTML report
+   - Download HTML or PDF report
+   - View comparison history
 
 ### API Usage Example
 

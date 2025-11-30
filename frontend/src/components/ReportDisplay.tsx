@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { ArrowLeft, Download, CheckCircle, AlertCircle, Info, Loader2 } from 'lucide-react'
+import { ArrowLeft, Download, CheckCircle, AlertCircle, Info, Loader2, FileText } from 'lucide-react'
 import axios from 'axios'
 import { toast } from 'react-toastify'
 import {
@@ -104,6 +104,30 @@ export default function ReportDisplay({ jobId, onBack }: ReportDisplayProps) {
     }
   }
 
+  const downloadPDF = async () => {
+    try {
+      toast.info('Generating PDF report...')
+      const response = await axios.get(`/api/v1/report/${jobId}/pdf`, {
+        responseType: 'blob'
+      })
+      
+      // Create download link
+      const url = window.URL.createObjectURL(new Blob([response.data]))
+      const link = document.createElement('a')
+      link.href = url
+      link.setAttribute('download', `ui-comparison-${jobId.slice(0, 8)}.pdf`)
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(url)
+      
+      toast.success('PDF downloaded successfully!')
+    } catch (err) {
+      toast.error('Failed to download PDF report')
+      console.error('PDF download error:', err)
+    }
+  }
+
   if (loading) {
     return (
       <div className="max-w-4xl mx-auto">
@@ -187,10 +211,16 @@ export default function ReportDisplay({ jobId, onBack }: ReportDisplayProps) {
           New Comparison
         </button>
 
-        <button onClick={downloadReport} className="btn-secondary flex items-center gap-2">
-          <Download className="w-4 h-4" />
-          Download HTML Report
-        </button>
+        <div className="flex gap-2">
+          <button onClick={downloadPDF} className="btn-primary flex items-center gap-2">
+            <FileText className="w-4 h-4" />
+            Download PDF
+          </button>
+          <button onClick={downloadReport} className="btn-secondary flex items-center gap-2">
+            <Download className="w-4 h-4" />
+            HTML Report
+          </button>
+        </div>
       </div>
 
       {/* Match Score Card */}
