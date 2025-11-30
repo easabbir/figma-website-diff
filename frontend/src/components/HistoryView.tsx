@@ -123,7 +123,7 @@ export default function HistoryView({ onSelectJob, onClose }: HistoryViewProps) 
         </div>
 
         {/* Stats */}
-        {stats && (
+        {stats && stats.total_comparisons > 0 && (
           <div className="grid grid-cols-4 gap-4 p-4 bg-gray-50 border-b">
             <div className="text-center">
               <p className="text-2xl font-bold text-gray-900">{stats.total_comparisons}</p>
@@ -166,7 +166,8 @@ export default function HistoryView({ onSelectJob, onClose }: HistoryViewProps) 
           ) : filteredHistory.length === 0 ? (
             <div className="text-center py-12 text-gray-500">
               <Clock className="w-12 h-12 mx-auto mb-4 opacity-50" />
-              <p>No comparison history found</p>
+              <p className="font-medium">No comparison history found</p>
+              <p className="text-sm mt-2">Run your first comparison to see it here!</p>
             </div>
           ) : (
             <div className="divide-y">

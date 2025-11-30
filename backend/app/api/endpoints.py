@@ -70,6 +70,16 @@ async def process_comparison_job(
         output_dir = Path(settings.OUTPUT_DIR) / job_id
         output_dir.mkdir(parents=True, exist_ok=True)
         
+        # Save to history
+        viewport = options.get("viewport", {"width": 1920, "height": 1080})
+        history_db.save_comparison(
+            job_id=job_id,
+            figma_url=figma_input.get("value", ""),
+            website_url=website_url,
+            viewport=viewport,
+            viewport_name="desktop"
+        )
+        
         # Step 1: Extract Figma data
         job_progress[job_id].progress = 20
         job_progress[job_id].message = "Extracting Figma design data..."
@@ -133,6 +143,17 @@ async def process_comparison_job(
             report_generator.generate_html_report(report, html_report_path)
             report.report_html_url = f"/static/{job_id}/report.html"
         
+        # Update history with results
+        history_db.update_comparison_result(
+            job_id=job_id,
+            match_score=report.summary.match_score,
+            total_differences=report.summary.total_differences,
+            critical_count=report.summary.critical,
+            warning_count=report.summary.warnings,
+            info_count=report.summary.info,
+            status="completed"
+        )
+        
         # Complete
         job_progress[job_id].progress = 100
         job_progress[job_id].status = "completed"
@@ -150,6 +171,17 @@ async def process_comparison_job(
             status="failed",
             progress=0,
             message=f"Error: {str(e)}"
+        )
+        
+        # Update history with failure
+        history_db.update_comparison_result(
+            job_id=job_id,
+            match_score=0,
+            total_differences=0,
+            critical_count=0,
+            warning_count=0,
+            info_count=0,
+            status="failed"
         )
         
         # Create error report
