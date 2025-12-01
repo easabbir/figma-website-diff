@@ -39,6 +39,7 @@ export default function ReportDisplay({ jobId, onBack }: ReportDisplayProps) {
 
   useEffect(() => {
     let progressInterval: ReturnType<typeof setInterval>
+    let reportFetched = false  // Prevent multiple fetches/toasts
 
     const fetchProgress = async () => {
       try {
@@ -46,7 +47,8 @@ export default function ReportDisplay({ jobId, onBack }: ReportDisplayProps) {
         setProgress(response.data.progress)
         console.log('Progress update:', response.data.status, response.data.progress + '%', response.data.message)
 
-        if (response.data.status === 'completed' || response.data.status === 'failed') {
+        if ((response.data.status === 'completed' || response.data.status === 'failed') && !reportFetched) {
+          reportFetched = true
           clearInterval(progressInterval)
           fetchReport()
         }
@@ -79,6 +81,7 @@ export default function ReportDisplay({ jobId, onBack }: ReportDisplayProps) {
         if (err.response?.status === 202) {
           // Still processing - this shouldn't happen since we only call after progress shows complete
           console.log('Unexpected 202 response when fetching report')
+          reportFetched = false  // Allow retry
           return
         }
         console.error('Error fetching report:', err)
