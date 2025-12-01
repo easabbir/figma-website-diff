@@ -130,7 +130,7 @@ class PDFReportGenerator:
         story.append(Paragraph("UI Comparison Report", self.styles['ReportTitle']))
         local_time = get_local_datetime()
         story.append(Paragraph(
-            f"Generated on {local_time.strftime('%B %d, %Y at %I:%M %p %Z')}",
+            f"Generated on {local_time.strftime('%B %d, %Y at %I:%M %p')}",
             self.styles['ReportSubtitle']
         ))
         story.append(Paragraph(f"Job ID: {report.job_id}", self.styles['ReportSubtitle']))
