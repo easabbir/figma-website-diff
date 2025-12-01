@@ -3,13 +3,22 @@
 from typing import Dict
 from pathlib import Path
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from jinja2 import Template
 import logging
 
 from ..models.schemas import DiffReport
 
 logger = logging.getLogger(__name__)
+
+
+def format_local_datetime(dt: datetime, fmt: str = '%Y-%m-%d %H:%M:%S') -> str:
+    """Convert datetime to local timezone and format it."""
+    if dt.tzinfo is None:
+        # Assume UTC if no timezone info
+        dt = dt.replace(tzinfo=timezone.utc)
+    local_dt = dt.astimezone()  # Convert to local timezone
+    return local_dt.strftime(fmt)
 
 
 HTML_TEMPLATE = """
@@ -178,7 +187,7 @@ HTML_TEMPLATE = """
     <div class="container">
         <div class="header">
             <h1>🎨 UI Comparison Report</h1>
-            <p>Job ID: {{ report.job_id }} | Generated: {{ report.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</p>
+            <p>Job ID: {{ report.job_id }} | Generated: {{ local_time }}</p>
         </div>
         
         <div class="match-score">
@@ -310,8 +319,9 @@ class ReportGenerator:
         output_path = Path(output_path)
         output_path.parent.mkdir(parents=True, exist_ok=True)
         
-        # Render template
-        html_content = self.html_template.render(report=report)
+        # Render template with local time
+        local_time = format_local_datetime(report.created_at)
+        html_content = self.html_template.render(report=report, local_time=local_time)
         
         with open(output_path, 'w', encoding='utf-8') as f:
             f.write(html_content)

@@ -11,11 +11,16 @@ from reportlab.platypus import (
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 from pathlib import Path
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 import os
 
 from ..models.schemas import DiffReport, SeverityLevel
+
+
+def get_local_datetime() -> datetime:
+    """Get current datetime in local timezone."""
+    return datetime.now().astimezone()
 
 logger = logging.getLogger(__name__)
 
@@ -123,8 +128,9 @@ class PDFReportGenerator:
         
         # Title
         story.append(Paragraph("UI Comparison Report", self.styles['ReportTitle']))
+        local_time = get_local_datetime()
         story.append(Paragraph(
-            f"Generated on {datetime.now().strftime('%B %d, %Y at %I:%M %p')}",
+            f"Generated on {local_time.strftime('%B %d, %Y at %I:%M %p %Z')}",
             self.styles['ReportSubtitle']
         ))
         story.append(Paragraph(f"Job ID: {report.job_id}", self.styles['ReportSubtitle']))
