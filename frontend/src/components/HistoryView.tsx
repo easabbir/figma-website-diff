@@ -232,15 +232,6 @@ export default function HistoryView({ onSelectJob, onClose }: HistoryViewProps) 
           )}
         </div>
 
-        {/* Footer */}
-        <div className="p-4 bg-gray-50 border-t flex justify-end">
-          <button
-            onClick={onClose}
-            className="btn-secondary"
-          >
-            Close
-          </button>
-        </div>
       </div>
     </div>
   )
