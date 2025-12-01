@@ -7,6 +7,7 @@ import FigmaOAuth from './FigmaOAuth'
 interface CachedFormData {
   figmaUrl: string
   figmaToken: string
+  figmaNodeId: string
   websiteUrl: string
   viewportWidth: string
   viewportHeight: string
@@ -22,6 +23,7 @@ interface ComparisonFormProps {
 export default function ComparisonForm({ onComparisonStart, cachedData, onShowHistory }: ComparisonFormProps) {
   const [figmaUrl, setFigmaUrl] = useState(cachedData?.figmaUrl || '')
   const [figmaToken, setFigmaToken] = useState(cachedData?.figmaToken || '')
+  const [figmaNodeId, setFigmaNodeId] = useState(cachedData?.figmaNodeId || '')
   const [websiteUrl, setWebsiteUrl] = useState(cachedData?.websiteUrl || '')
   const [viewportWidth, setViewportWidth] = useState(cachedData?.viewportWidth || '1920')
   const [viewportHeight, setViewportHeight] = useState(cachedData?.viewportHeight || '1080')
@@ -31,11 +33,33 @@ export default function ComparisonForm({ onComparisonStart, cachedData, onShowHi
   const [hasOAuthToken, setHasOAuthToken] = useState(false)
   const [useOAuth, setUseOAuth] = useState(true)
 
+  // Extract node ID from Figma URL
+  const extractNodeIdFromUrl = (url: string): string => {
+    try {
+      const urlObj = new URL(url)
+      const nodeId = urlObj.searchParams.get('node-id')
+      return nodeId || ''
+    } catch {
+      return ''
+    }
+  }
+
+  // Auto-extract node ID when URL changes
+  useEffect(() => {
+    if (figmaUrl) {
+      const extractedNodeId = extractNodeIdFromUrl(figmaUrl)
+      if (extractedNodeId && !figmaNodeId) {
+        setFigmaNodeId(extractedNodeId)
+      }
+    }
+  }, [figmaUrl])
+
   // Restore cached data when it changes
   useEffect(() => {
     if (cachedData) {
       setFigmaUrl(cachedData.figmaUrl)
       setFigmaToken(cachedData.figmaToken)
+      setFigmaNodeId(cachedData.figmaNodeId || '')
       setWebsiteUrl(cachedData.websiteUrl)
       setViewportWidth(cachedData.viewportWidth)
       setViewportHeight(cachedData.viewportHeight)
@@ -77,6 +101,7 @@ export default function ComparisonForm({ onComparisonStart, cachedData, onShowHi
           type: 'url',
           value: figmaUrl,
           access_token: accessToken,
+          node_id: figmaNodeId || undefined,
         },
         website_url: websiteUrl,
         options: {
@@ -104,6 +129,7 @@ export default function ComparisonForm({ onComparisonStart, cachedData, onShowHi
         {
           figmaUrl,
           figmaToken,
+          figmaNodeId,
           websiteUrl,
           viewportWidth,
           viewportHeight,
@@ -165,10 +191,28 @@ export default function ComparisonForm({ onComparisonStart, cachedData, onShowHi
               type="url"
               value={figmaUrl}
               onChange={(e) => setFigmaUrl(e.target.value)}
-              placeholder="https://www.figma.com/file/..."
+              placeholder="https://www.figma.com/design/ABC123/Design-Name?node-id=123-456"
               className="input-field mb-3"
               required
             />
+            
+            {/* Node ID input - for large files */}
+            <div className="mb-3">
+              <label className="text-xs font-medium text-gray-600 mb-1 block">
+                Frame/Node ID (recommended for large files)
+              </label>
+              <input
+                type="text"
+                value={figmaNodeId}
+                onChange={(e) => setFigmaNodeId(e.target.value)}
+                placeholder="e.g., 4614-49797 (auto-extracted from URL)"
+                className="input-field text-sm"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                💡 Specify a node ID to compare only that frame instead of the entire file. 
+                This is extracted automatically from the URL if present.
+              </p>
+            </div>
             
             {/* Token input - show toggle if OAuth is available */}
             {hasOAuthToken ? (

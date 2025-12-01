@@ -69,6 +69,7 @@ class FigmaExtractor:
         self.api_base_url = api_base_url
         self.session = requests.Session()
         self.use_cache = True  # Enable caching by default
+        self.timeout = 120  # 2 minute timeout for large files
     
     def set_access_token(self, token: str):
         """Set the Figma API access token."""
@@ -117,7 +118,7 @@ class FigmaExtractor:
         url = f"{self.api_base_url}/files/{file_key}"
         
         try:
-            response = self.session.get(url)
+            response = self.session.get(url, timeout=self.timeout)
             response.raise_for_status()
             data = response.json()
             
@@ -189,7 +190,7 @@ class FigmaExtractor:
         
         for attempt in range(max_retries + 1):
             try:
-                response = self.session.get(url, params=params)
+                response = self.session.get(url, params=params, timeout=self.timeout)
                 
                 if response.status_code == 429:
                     if attempt < max_retries:
@@ -277,7 +278,7 @@ class FigmaExtractor:
                         result[node_id] = str(img_path)
                         continue
                     
-                    img_response = requests.get(img_url)
+                    img_response = requests.get(img_url, timeout=60)
                     img_response.raise_for_status()
                     
                     with open(img_path, "wb") as f:
@@ -466,6 +467,44 @@ class FigmaExtractor:
         
         return tokens
     
+    def get_node_data(self, file_key: str, node_id: str, force_refresh: bool = False) -> Dict:
+        """
+        Fetch specific node data from Figma API (more efficient for large files).
+        
+        Args:
+            file_key: Figma file key
+            node_id: Node ID to fetch
+            force_refresh: If True, bypass cache
+            
+        Returns:
+            Node data from Figma API
+        """
+        # Check cache first
+        cache_key = get_cache_key(file_key, node_id, endpoint="nodes")
+        if self.use_cache and not force_refresh:
+            cached = get_cached_response(cache_key)
+            if cached:
+                return cached
+        
+        # Convert node_id format: 4614-49797 -> 4614:49797
+        api_node_id = node_id.replace("-", ":")
+        url = f"{self.api_base_url}/files/{file_key}/nodes"
+        params = {"ids": api_node_id}
+        
+        try:
+            response = self.session.get(url, params=params, timeout=self.timeout)
+            response.raise_for_status()
+            data = response.json()
+            
+            # Cache the response
+            if self.use_cache:
+                set_cached_response(cache_key, data, file_key)
+            
+            return data
+        except requests.exceptions.HTTPError as e:
+            logger.error(f"Error fetching node data: {e}")
+            raise
+    
     def extract_from_url(self, figma_url: str, access_token: str, 
                         node_id: Optional[str] = None, 
                         output_dir: Optional[Path] = None) -> Dict:
@@ -489,24 +528,45 @@ class FigmaExtractor:
         if not file_key:
             raise ValueError(f"Could not extract file key from URL: {figma_url}")
         
-        # Fetch file data
-        logger.info(f"Fetching Figma file: {file_key}")
-        file_data = self.get_file_data(file_key)
-        
-        # Extract design tokens
-        document = file_data.get("document", {})
+        # Also try to extract node_id from URL if not provided
+        if not node_id:
+            try:
+                from urllib.parse import urlparse, parse_qs
+                parsed = urlparse(figma_url)
+                query_params = parse_qs(parsed.query)
+                if 'node-id' in query_params:
+                    node_id = query_params['node-id'][0]
+                    logger.info(f"Extracted node_id from URL: {node_id}")
+            except Exception as e:
+                logger.debug(f"Could not extract node_id from URL: {e}")
         
         if node_id:
-            # Find specific node
-            target_node = self._find_node_by_id(document, node_id)
-            if not target_node:
+            # Use nodes endpoint for specific node (much faster for large files)
+            logger.info(f"Fetching specific node {node_id} from file: {file_key}")
+            node_data = self.get_node_data(file_key, node_id)
+            
+            # Get the node from response
+            api_node_id = node_id.replace("-", ":")
+            nodes = node_data.get("nodes", {})
+            if api_node_id not in nodes:
                 raise ValueError(f"Node {node_id} not found in file")
+            
+            target_node = nodes[api_node_id].get("document", {})
             nodes_to_process = [target_node]
-            export_ids = [node_id]
+            export_ids = [node_id.replace("-", ":")]
+            file_name = node_data.get("name", "Unknown")
+            file_version = node_data.get("version")
+            last_modified = node_data.get("lastModified")
         else:
-            # Process all top-level canvases/frames
+            # Fetch entire file (slower for large files)
+            logger.info(f"Fetching entire Figma file: {file_key}")
+            file_data = self.get_file_data(file_key)
+            document = file_data.get("document", {})
             nodes_to_process = document.get("children", [])
             export_ids = [node.get("id") for node in nodes_to_process if node.get("id")]
+            file_name = file_data.get("name")
+            file_version = file_data.get("version")
+            last_modified = file_data.get("lastModified")
         
         # Extract design tokens from all nodes
         all_tokens = []
@@ -522,12 +582,12 @@ class FigmaExtractor:
         
         return {
             "file_key": file_key,
-            "file_name": file_data.get("name"),
+            "file_name": file_name,
             "design_tokens": all_tokens,
             "image_exports": image_paths,
             "metadata": {
-                "version": file_data.get("version"),
-                "last_modified": file_data.get("lastModified")
+                "version": file_version,
+                "last_modified": last_modified
             }
         }
     

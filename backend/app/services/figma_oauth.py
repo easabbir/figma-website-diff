@@ -9,6 +9,10 @@ from datetime import datetime, timedelta
 from pathlib import Path
 import json
 import logging
+from dotenv import load_dotenv
+
+# Load .env file
+load_dotenv(Path(__file__).parent.parent.parent / ".env")
 
 logger = logging.getLogger(__name__)
 
@@ -27,8 +31,8 @@ class FigmaOAuthConfig:
         self.client_id = os.getenv("FIGMA_CLIENT_ID", "")
         self.client_secret = os.getenv("FIGMA_CLIENT_SECRET", "")
         self.redirect_uri = os.getenv("FIGMA_REDIRECT_URI", "http://localhost:8000/api/v1/oauth/callback")
-        # Scopes: file_read for reading files, file_variables:read for variables
-        self.scopes = "files:read"
+        # Figma OAuth scopes - file_content:read for reading files and rendering images
+        self.scopes = "file_content:read"
     
     @property
     def is_configured(self) -> bool:
@@ -124,10 +128,13 @@ class FigmaOAuth:
         params = {
             "client_id": self.config.client_id,
             "redirect_uri": self.config.redirect_uri,
-            "scope": self.config.scopes,
             "state": state,
             "response_type": "code"
         }
+        
+        # Only add scope if configured
+        if self.config.scopes:
+            params["scope"] = self.config.scopes
         
         query_string = "&".join(f"{k}={v}" for k, v in params.items())
         auth_url = f"{FIGMA_OAUTH_URL}?{query_string}"
