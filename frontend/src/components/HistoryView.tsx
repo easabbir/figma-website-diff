@@ -39,6 +39,8 @@ export default function HistoryView({ onSelectJob, onClose }: HistoryViewProps) 
   const [stats, setStats] = useState<HistoryStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<string>('')
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
 
   useEffect(() => {
     fetchHistory()
@@ -66,15 +68,25 @@ export default function HistoryView({ onSelectJob, onClose }: HistoryViewProps) 
     }
   }
 
-  const deleteItem = async (jobId: string) => {
-    if (!confirm('Are you sure you want to delete this comparison?')) return
-    
+  const handleDeleteClick = (jobId: string) => {
+    setConfirmDeleteId(jobId)
+  }
+
+  const cancelDelete = () => {
+    setConfirmDeleteId(null)
+  }
+
+  const confirmDelete = async (jobId: string) => {
+    setDeletingId(jobId)
     try {
       await axios.delete(`/api/v1/history/${jobId}`)
       setHistory(history.filter(item => item.job_id !== jobId))
       toast.success('Comparison deleted')
     } catch (err) {
       toast.error('Failed to delete comparison')
+    } finally {
+      setDeletingId(null)
+      setConfirmDeleteId(null)
     }
   }
 
@@ -217,13 +229,39 @@ export default function HistoryView({ onSelectJob, onClose }: HistoryViewProps) 
                       >
                         <ExternalLink className="w-5 h-5" />
                       </button>
-                      <button
-                        onClick={() => deleteItem(item.job_id)}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        title="Delete"
-                      >
-                        <Trash2 className="w-5 h-5" />
-                      </button>
+                      
+                      {confirmDeleteId === item.job_id ? (
+                        <div className="flex items-center gap-1 bg-red-50 rounded-lg px-2 py-1 animate-fadeIn">
+                          <span className="text-xs text-red-700 font-medium">Delete?</span>
+                          <button
+                            onClick={() => confirmDelete(item.job_id)}
+                            disabled={deletingId === item.job_id}
+                            className="p-1 text-white bg-red-600 hover:bg-red-700 rounded transition-colors disabled:opacity-50"
+                            title="Confirm Delete"
+                          >
+                            {deletingId === item.job_id ? (
+                              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                            ) : (
+                              <Trash2 className="w-4 h-4" />
+                            )}
+                          </button>
+                          <button
+                            onClick={cancelDelete}
+                            className="p-1 text-gray-600 hover:bg-gray-200 rounded transition-colors"
+                            title="Cancel"
+                          >
+                            <span className="text-xs font-bold">✕</span>
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => handleDeleteClick(item.job_id)}
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Delete"
+                        >
+                          <Trash2 className="w-5 h-5" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
