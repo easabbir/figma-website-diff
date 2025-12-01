@@ -1,7 +1,7 @@
 """API endpoints for Figma-Website comparison."""
 
 from fastapi import APIRouter, HTTPException, BackgroundTasks, UploadFile, File, Query
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from typing import Dict, Optional, List
 import uuid
 import logging
@@ -28,6 +28,7 @@ from ..services.web_analyzer import analyze_website_async
 from ..services.comparator import UIComparator
 from ..services.report_generator import ReportGenerator
 from ..services.pdf_generator import PDFReportGenerator
+from ..services.figma_oauth import figma_oauth
 from ..models.database import history_db
 from ..config import get_settings
 
@@ -715,3 +716,144 @@ async def get_responsive_report(job_id: str) -> ResponsiveReport:
         raise HTTPException(status_code=404, detail="Responsive job not found")
     
     return responsive_job_results[job_id]
+
+
+# ============================================================================
+# OAuth Endpoints
+# ============================================================================
+
+@router.get("/oauth/status")
+async def get_oauth_status():
+    """
+    Get the current Figma OAuth status.
+    
+    Returns:
+        OAuth configuration and authentication status
+    """
+    return figma_oauth.get_oauth_status()
+
+
+@router.get("/oauth/authorize")
+async def start_oauth_flow():
+    """
+    Start the Figma OAuth authorization flow.
+    
+    Returns:
+        Authorization URL to redirect the user to
+    """
+    try:
+        auth_data = figma_oauth.generate_auth_url()
+        return {
+            "authorization_url": auth_data["url"],
+            "state": auth_data["state"],
+            "message": "Redirect the user to the authorization_url to complete OAuth"
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/oauth/callback")
+async def oauth_callback(code: str = Query(...), state: str = Query(...)):
+    """
+    Handle the OAuth callback from Figma.
+    
+    This endpoint receives the authorization code after the user
+    authorizes the application on Figma.
+    
+    Args:
+        code: Authorization code from Figma
+        state: State parameter for CSRF protection
+        
+    Returns:
+        Redirects to frontend with success/error status
+    """
+    # Validate state (optional - for CSRF protection)
+    # In production, you should validate the state parameter
+    
+    try:
+        # Exchange code for token
+        token_data = figma_oauth.exchange_code_for_token(code)
+        
+        # Redirect to frontend with success
+        frontend_url = "http://localhost:5173"
+        return RedirectResponse(
+            url=f"{frontend_url}?oauth=success&user_id={token_data.get('user_id_string', 'unknown')}",
+            status_code=302
+        )
+    except ValueError as e:
+        logger.error(f"OAuth callback error: {e}")
+        frontend_url = "http://localhost:5173"
+        return RedirectResponse(
+            url=f"{frontend_url}?oauth=error&message={str(e)}",
+            status_code=302
+        )
+    except Exception as e:
+        logger.error(f"OAuth callback error: {e}")
+        frontend_url = "http://localhost:5173"
+        return RedirectResponse(
+            url=f"{frontend_url}?oauth=error&message=Authentication failed",
+            status_code=302
+        )
+
+
+@router.post("/oauth/refresh")
+async def refresh_oauth_token():
+    """
+    Manually refresh the OAuth token.
+    
+    Returns:
+        New token information
+    """
+    token_data = figma_oauth.token_storage.get_default_token()
+    if not token_data:
+        raise HTTPException(status_code=400, detail="No token to refresh")
+    
+    refresh_token = token_data.get("refresh_token")
+    if not refresh_token:
+        raise HTTPException(status_code=400, detail="No refresh token available")
+    
+    try:
+        new_token = figma_oauth.refresh_token(refresh_token)
+        return {
+            "success": True,
+            "expires_at": new_token.get("expires_at"),
+            "message": "Token refreshed successfully"
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.delete("/oauth/logout")
+async def oauth_logout():
+    """
+    Log out from Figma OAuth (delete stored tokens).
+    
+    Returns:
+        Success message
+    """
+    users = figma_oauth.token_storage.list_users()
+    for user_id in users:
+        figma_oauth.token_storage.delete_token(user_id)
+    
+    return {"success": True, "message": "Logged out successfully"}
+
+
+@router.get("/oauth/token")
+async def get_oauth_token():
+    """
+    Get the current OAuth access token (for use in comparisons).
+    
+    Returns:
+        Access token if available
+    """
+    access_token = figma_oauth.get_valid_access_token()
+    if not access_token:
+        raise HTTPException(
+            status_code=401, 
+            detail="No valid OAuth token. Please authenticate with Figma first."
+        )
+    
+    return {
+        "access_token": access_token,
+        "token_type": "bearer"
+    }

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Play, Figma, Globe, Settings, Clock } from 'lucide-react'
 import { toast } from 'react-toastify'
 import axios from 'axios'
+import FigmaOAuth from './FigmaOAuth'
 
 interface CachedFormData {
   figmaUrl: string
@@ -27,6 +28,8 @@ export default function ComparisonForm({ onComparisonStart, cachedData, onShowHi
   const [comparisonMode, setComparisonMode] = useState(cachedData?.comparisonMode || 'hybrid')
   const [loading, setLoading] = useState(false)
   const [showAdvanced, setShowAdvanced] = useState(false)
+  const [hasOAuthToken, setHasOAuthToken] = useState(false)
+  const [useOAuth, setUseOAuth] = useState(true)
 
   // Restore cached data when it changes
   useEffect(() => {
@@ -43,7 +46,9 @@ export default function ComparisonForm({ onComparisonStart, cachedData, onShowHi
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!figmaUrl || !figmaToken || !websiteUrl) {
+    // Check if we have OAuth token or personal token
+    const needsToken = !hasOAuthToken || !useOAuth
+    if (!figmaUrl || (needsToken && !figmaToken) || !websiteUrl) {
       toast.error('Please fill in all required fields')
       return
     }
@@ -51,11 +56,27 @@ export default function ComparisonForm({ onComparisonStart, cachedData, onShowHi
     setLoading(true)
 
     try {
+      // Get the access token - either from OAuth or personal token
+      let accessToken = figmaToken
+      if (hasOAuthToken && useOAuth) {
+        try {
+          const tokenResponse = await axios.get('/api/v1/oauth/token')
+          accessToken = tokenResponse.data.access_token
+        } catch (err) {
+          // Fall back to personal token if OAuth fails
+          if (!figmaToken) {
+            toast.error('OAuth token expired. Please reconnect or use a personal token.')
+            setLoading(false)
+            return
+          }
+        }
+      }
+
       const response = await axios.post('/api/v1/compare', {
         figma_input: {
           type: 'url',
           value: figmaUrl,
-          access_token: figmaToken,
+          access_token: accessToken,
         },
         website_url: websiteUrl,
         options: {
@@ -128,6 +149,11 @@ export default function ComparisonForm({ onComparisonStart, cachedData, onShowHi
           )}
         </div>
 
+        {/* OAuth Section */}
+        <div className="mb-6">
+          <FigmaOAuth onTokenChange={setHasOAuthToken} />
+        </div>
+
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Figma Input */}
           <div>
@@ -143,25 +169,57 @@ export default function ComparisonForm({ onComparisonStart, cachedData, onShowHi
               className="input-field mb-3"
               required
             />
-            <input
-              type="text"
-              value={figmaToken}
-              onChange={(e) => setFigmaToken(e.target.value)}
-              placeholder="Figma API Token (get from figma.com/developers)"
-              className="input-field"
-              required
-            />
-            <p className="text-xs text-gray-500 mt-2">
-              💡 Get your API token from{' '}
-              <a
-                href="https://www.figma.com/developers/api#access-tokens"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-primary-600 hover:underline"
-              >
-                Figma Developers
-              </a>
-            </p>
+            
+            {/* Token input - show toggle if OAuth is available */}
+            {hasOAuthToken ? (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="useOAuth"
+                    checked={useOAuth}
+                    onChange={(e) => setUseOAuth(e.target.checked)}
+                    className="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
+                  />
+                  <label htmlFor="useOAuth" className="text-sm text-gray-700">
+                    Use OAuth token (recommended - higher rate limits)
+                  </label>
+                </div>
+                {!useOAuth && (
+                  <input
+                    type="text"
+                    value={figmaToken}
+                    onChange={(e) => setFigmaToken(e.target.value)}
+                    placeholder="Figma API Token (personal token)"
+                    className="input-field"
+                    required
+                  />
+                )}
+              </div>
+            ) : (
+              <>
+                <input
+                  type="text"
+                  value={figmaToken}
+                  onChange={(e) => setFigmaToken(e.target.value)}
+                  placeholder="Figma API Token (get from figma.com/developers)"
+                  className="input-field"
+                  required
+                />
+                <p className="text-xs text-gray-500 mt-2">
+                  💡 Get your API token from{' '}
+                  <a
+                    href="https://www.figma.com/developers/api#access-tokens"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary-600 hover:underline"
+                  >
+                    Figma Developers
+                  </a>
+                  {' '}or connect with OAuth above for higher rate limits.
+                </p>
+              </>
+            )}
           </div>
 
           {/* Website Input */}
