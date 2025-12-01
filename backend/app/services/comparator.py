@@ -158,6 +158,9 @@ class UIComparator:
         figma_color_elements = {}  # color -> list of element info
         for token in figma_data.get("design_tokens", []):
             element_name = token.get("name", "Unknown element")
+            element_description = token.get("element_description", element_name)
+            full_path = token.get("full_path", element_name)
+            node_type = token.get("type", "")
             bounds = token.get("bounds", {})
             
             for fill in token.get("fills", []):
@@ -167,8 +170,12 @@ class UIComparator:
                         figma_color_elements[color] = []
                     figma_color_elements[color].append({
                         "name": element_name,
+                        "description": element_description,
+                        "full_path": full_path,
+                        "node_type": node_type,
                         "type": "fill",
-                        "coordinates": {"x": int(bounds.get("x", 0)), "y": int(bounds.get("y", 0))}
+                        "coordinates": {"x": int(bounds.get("x", 0)), "y": int(bounds.get("y", 0))},
+                        "size": {"width": int(bounds.get("width", 0)), "height": int(bounds.get("height", 0))}
                     })
         
         # Extract website colors with element info
@@ -228,21 +235,34 @@ class UIComparator:
                     web_elems = website_color_elements.get(closest_color, [])
                     web_elem = web_elems[0] if web_elems else {}
                     
-                    # Build element description
-                    element_name = figma_elem.get("name", "Unknown element")
+                    # Build element description - use enhanced info
+                    element_description = figma_elem.get("description", figma_elem.get("name", "Unknown element"))
+                    full_path = figma_elem.get("full_path", "")
                     element_selector = web_elem.get("selector", "")
-                    color_type = web_elem.get("type", figma_elem.get("type", "color"))
+                    web_element_name = web_elem.get("name", "")
+                    color_type = web_elem.get("type", figma_elem.get("type", "fill"))
                     coordinates = web_elem.get("coordinates") or figma_elem.get("coordinates")
+                    size = figma_elem.get("size", {})
                     
-                    # Create detailed description
+                    # Create detailed, actionable description
                     description = f"{color_type.capitalize()} color mismatch: Figma {figma_color} vs Website {closest_color}"
+                    
+                    # Build a comprehensive element name for identification
+                    if full_path and len(full_path) > len(element_description):
+                        display_name = f"{element_description} ({full_path})"
+                    else:
+                        display_name = element_description
+                    
+                    # Add size info if available
+                    if size.get("width") and size.get("height"):
+                        display_name += f" [{size['width']}x{size['height']}px]"
                     
                     differences.append(Difference(
                         id=str(uuid.uuid4()),
                         type=DifferenceType.COLOR,
                         severity=SeverityLevel.WARNING if comparison["delta_percentage"] < 10 else SeverityLevel.CRITICAL,
-                        element_name=element_name,
-                        element_selector=element_selector,
+                        element_name=display_name,
+                        element_selector=element_selector if element_selector else web_element_name,
                         figma_value=figma_color,
                         website_value=closest_color,
                         delta=f"{comparison['delta_percentage']:.1f}% difference",

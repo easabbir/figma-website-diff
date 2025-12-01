@@ -290,19 +290,34 @@ class FigmaExtractor:
         
         return image_urls
     
-    def extract_design_tokens(self, node: Dict) -> Dict:
+    def extract_design_tokens(self, node: Dict, parent_path: str = "") -> Dict:
         """
         Extract design tokens (colors, typography, spacing) from a Figma node.
         
         Args:
             node: Figma node object
+            parent_path: Path of parent elements for context
             
         Returns:
             Extracted design tokens
         """
+        node_name = node.get("name", "")
+        node_type = node.get("type", "")
+        
+        # Build full path for better identification
+        if parent_path:
+            full_path = f"{parent_path} > {node_name}"
+        else:
+            full_path = node_name
+        
+        # Create a descriptive element name
+        element_description = self._get_element_description(node)
+        
         tokens = {
-            "type": node.get("type"),
-            "name": node.get("name"),
+            "type": node_type,
+            "name": node_name,
+            "full_path": full_path,
+            "element_description": element_description,
             "bounds": self._extract_bounds(node),
             "fills": self._extract_fills(node),
             "strokes": self._extract_strokes(node),
@@ -312,6 +327,56 @@ class FigmaExtractor:
         }
         
         return tokens
+    
+    def _get_element_description(self, node: Dict) -> str:
+        """Generate a human-readable description of the element."""
+        node_type = node.get("type", "").lower()
+        node_name = node.get("name", "Unknown")
+        
+        # Map Figma types to readable descriptions
+        type_descriptions = {
+            "frame": "Container/Section",
+            "group": "Group",
+            "rectangle": "Rectangle/Box",
+            "ellipse": "Circle/Oval",
+            "text": "Text",
+            "vector": "Icon/Shape",
+            "instance": "Component Instance",
+            "component": "Component",
+            "line": "Line",
+            "boolean_operation": "Combined Shape",
+        }
+        
+        type_desc = type_descriptions.get(node_type, node_type.capitalize())
+        
+        # Check for common naming patterns
+        name_lower = node_name.lower()
+        if any(x in name_lower for x in ['button', 'btn']):
+            return f"Button: {node_name}"
+        elif any(x in name_lower for x in ['header', 'nav', 'navigation']):
+            return f"Navigation: {node_name}"
+        elif any(x in name_lower for x in ['footer']):
+            return f"Footer: {node_name}"
+        elif any(x in name_lower for x in ['card']):
+            return f"Card: {node_name}"
+        elif any(x in name_lower for x in ['icon', 'ico']):
+            return f"Icon: {node_name}"
+        elif any(x in name_lower for x in ['image', 'img', 'photo']):
+            return f"Image: {node_name}"
+        elif any(x in name_lower for x in ['input', 'field', 'textfield']):
+            return f"Input Field: {node_name}"
+        elif any(x in name_lower for x in ['link', 'anchor']):
+            return f"Link: {node_name}"
+        elif any(x in name_lower for x in ['title', 'heading', 'h1', 'h2', 'h3']):
+            return f"Heading: {node_name}"
+        elif any(x in name_lower for x in ['paragraph', 'text', 'body', 'description']):
+            return f"Text: {node_name}"
+        elif any(x in name_lower for x in ['background', 'bg']):
+            return f"Background: {node_name}"
+        elif any(x in name_lower for x in ['container', 'wrapper', 'section']):
+            return f"Section: {node_name}"
+        
+        return f"{type_desc}: {node_name}"
     
     def _extract_bounds(self, node: Dict) -> Optional[Dict]:
         """Extract bounding box information."""
@@ -438,7 +503,7 @@ class FigmaExtractor:
         else:
             return f"#{r_int:02x}{g_int:02x}{b_int:02x}"
     
-    def traverse_and_extract(self, node: Dict, depth: int = 0, max_depth: int = 10) -> List[Dict]:
+    def traverse_and_extract(self, node: Dict, depth: int = 0, max_depth: int = 10, parent_path: str = "") -> List[Dict]:
         """
         Recursively traverse Figma node tree and extract design tokens.
         
@@ -446,6 +511,7 @@ class FigmaExtractor:
             node: Starting node
             depth: Current depth
             max_depth: Maximum traversal depth
+            parent_path: Path of parent elements for context
             
         Returns:
             List of extracted design tokens for all nodes
@@ -455,14 +521,18 @@ class FigmaExtractor:
         
         tokens = []
         
-        # Extract current node
-        node_tokens = self.extract_design_tokens(node)
+        # Extract current node with parent path
+        node_tokens = self.extract_design_tokens(node, parent_path)
         tokens.append(node_tokens)
+        
+        # Build path for children
+        node_name = node.get("name", "")
+        current_path = f"{parent_path} > {node_name}" if parent_path else node_name
         
         # Traverse children
         children = node.get("children", [])
         for child in children:
-            child_tokens = self.traverse_and_extract(child, depth + 1, max_depth)
+            child_tokens = self.traverse_and_extract(child, depth + 1, max_depth, current_path)
             tokens.extend(child_tokens)
         
         return tokens
