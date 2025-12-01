@@ -251,19 +251,33 @@ async def get_report(job_id: str) -> DiffReport:
     Returns:
         Difference report
     """
-    if job_id not in job_results:
-        # Check if job is in progress
-        if job_id in job_progress:
-            progress = job_progress[job_id]
-            if progress.status == "processing" or progress.status == "queued":
-                raise HTTPException(
-                    status_code=202,
-                    detail=f"Job is still processing: {progress.message}"
-                )
-        
-        raise HTTPException(status_code=404, detail="Job not found")
+    # First check in-memory cache
+    if job_id in job_results:
+        return job_results[job_id]
     
-    return job_results[job_id]
+    # Check if job is in progress
+    if job_id in job_progress:
+        progress = job_progress[job_id]
+        if progress.status == "processing" or progress.status == "queued":
+            raise HTTPException(
+                status_code=202,
+                detail=f"Job is still processing: {progress.message}"
+            )
+    
+    # Try to load from file (for historical reports)
+    report_path = Path(settings.OUTPUT_DIR) / job_id / "report.json"
+    if report_path.exists():
+        try:
+            with open(report_path, 'r') as f:
+                report_data = json.load(f)
+            # Cache it for future requests
+            report = DiffReport(**report_data)
+            job_results[job_id] = report
+            return report
+        except Exception as e:
+            logger.error(f"Failed to load report from file: {e}")
+    
+    raise HTTPException(status_code=404, detail="Job not found")
 
 
 @router.get("/progress/{job_id}", response_model=ProgressUpdate)
