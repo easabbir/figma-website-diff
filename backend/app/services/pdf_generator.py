@@ -233,17 +233,18 @@ class PDFReportGenerator:
                     f"<font color='#dc2626'>● Critical Issues ({len(critical_diffs)})</font>",
                     self.styles['Heading3']
                 ))
-                story.append(Spacer(1, 5))
+                story.append(Spacer(1, 10))
                 
                 for diff in critical_diffs[:10]:  # Limit to 10
                     story.append(self._create_difference_entry(diff, 'Critical'))
+                    story.append(Spacer(1, 8))
                 
                 if len(critical_diffs) > 10:
                     story.append(Paragraph(
                         f"... and {len(critical_diffs) - 10} more critical issues",
                         self.styles['Normal']
                     ))
-                story.append(Spacer(1, 15))
+                story.append(Spacer(1, 20))
             
             # Warnings
             if warning_diffs:
@@ -251,17 +252,18 @@ class PDFReportGenerator:
                     f"<font color='#f59e0b'>● Warnings ({len(warning_diffs)})</font>",
                     self.styles['Heading3']
                 ))
-                story.append(Spacer(1, 5))
+                story.append(Spacer(1, 10))
                 
                 for diff in warning_diffs[:10]:
                     story.append(self._create_difference_entry(diff, 'Warning'))
+                    story.append(Spacer(1, 8))
                 
                 if len(warning_diffs) > 10:
                     story.append(Paragraph(
                         f"... and {len(warning_diffs) - 10} more warnings",
                         self.styles['Normal']
                     ))
-                story.append(Spacer(1, 15))
+                story.append(Spacer(1, 20))
             
             # Info
             if info_diffs:
@@ -269,10 +271,11 @@ class PDFReportGenerator:
                     f"<font color='#3b82f6'>● Info ({len(info_diffs)})</font>",
                     self.styles['Heading3']
                 ))
-                story.append(Spacer(1, 5))
+                story.append(Spacer(1, 10))
                 
                 for diff in info_diffs[:5]:
                     story.append(self._create_difference_entry(diff, 'Info'))
+                    story.append(Spacer(1, 8))
                 
                 if len(info_diffs) > 5:
                     story.append(Paragraph(
@@ -300,12 +303,60 @@ class PDFReportGenerator:
         logger.info(f"PDF report generated: {output_path}")
         return str(output_path)
     
-    def _create_difference_entry(self, diff, style_name: str) -> Paragraph:
-        """Create a formatted difference entry."""
-        text = f"<b>{diff.type.value}</b>: {diff.description or 'No description'}"
+    def _create_difference_entry(self, diff, style_name: str) -> Table:
+        """Create a formatted difference entry with element info."""
+        # Build the content
+        rows = []
+        
+        # Element name/selector row
+        element_info = ""
+        if diff.element_name:
+            element_info = f"<b>Element:</b> {diff.element_name}"
+        elif diff.element_selector:
+            element_info = f"<b>Element:</b> <font size='8'>{diff.element_selector[:60]}{'...' if len(diff.element_selector) > 60 else ''}</font>"
+        
+        # Type and description
+        type_text = f"<b>{diff.type.value.upper()}</b>"
+        desc_text = diff.description or 'No description'
+        
+        # Values comparison
+        values_text = ""
         if diff.figma_value and diff.website_value:
-            text += f"<br/><font size='9'>Figma: {diff.figma_value} → Website: {diff.website_value}</font>"
-        return Paragraph(text, self.styles[style_name])
+            values_text = f"<font size='9'><b>Figma:</b> {diff.figma_value}<br/><b>Website:</b> {diff.website_value}</font>"
+        
+        # Coordinates if available
+        coords_text = ""
+        if diff.coordinates:
+            x = diff.coordinates.get('x', 0)
+            y = diff.coordinates.get('y', 0)
+            coords_text = f"<font size='8' color='#666666'>Location: ({x}, {y})</font>"
+        
+        # Build the entry
+        content_parts = [f"{type_text}: {desc_text}"]
+        if element_info:
+            content_parts.insert(0, element_info)
+        if values_text:
+            content_parts.append(values_text)
+        if coords_text:
+            content_parts.append(coords_text)
+        
+        full_text = "<br/>".join(content_parts)
+        
+        # Create a table for better formatting
+        entry_table = Table(
+            [[Paragraph(full_text, self.styles[style_name])]],
+            colWidths=[6*inch]
+        )
+        entry_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#fafafa')),
+            ('BOX', (0, 0), (-1, -1), 0.5, colors.HexColor('#e5e7eb')),
+            ('TOPPADDING', (0, 0), (-1, -1), 8),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+            ('LEFTPADDING', (0, 0), (-1, -1), 10),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 10),
+        ]))
+        
+        return entry_table
     
     def _get_score_color(self, score: float) -> str:
         """Get color based on match score."""
