@@ -145,7 +145,7 @@ class PDFReportGenerator:
                 f"<font color='{score_color}'>{report.summary.match_score:.1f}%</font>",
                 self.styles['ScoreStyle']
             ))
-            story.append(Spacer(1, 30))
+            story.append(Spacer(1, 60))  # More space before table
             
             # Summary table
             summary_data = [
