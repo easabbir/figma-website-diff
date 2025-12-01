@@ -154,18 +154,46 @@ class UIComparator:
         """Compare color usage between Figma and website."""
         differences = []
         
-        # Extract Figma colors from design tokens
-        figma_colors = set()
+        # Extract Figma colors from design tokens with element info
+        figma_color_elements = {}  # color -> list of element info
         for token in figma_data.get("design_tokens", []):
+            element_name = token.get("name", "Unknown element")
+            bounds = token.get("bounds", {})
+            
             for fill in token.get("fills", []):
                 if fill.get("type") == "SOLID" and fill.get("color"):
-                    figma_colors.add(fill["color"].lower())
+                    color = fill["color"].lower()
+                    if color not in figma_color_elements:
+                        figma_color_elements[color] = []
+                    figma_color_elements[color].append({
+                        "name": element_name,
+                        "type": "fill",
+                        "coordinates": {"x": int(bounds.get("x", 0)), "y": int(bounds.get("y", 0))}
+                    })
         
-        # Extract website colors
+        # Extract website colors with element info
+        website_color_elements = {}  # color -> list of element info
+        for color_info in website_data.get("colors_with_elements", []):
+            color = color_info.get("color", "").lower()
+            color_type = color_info.get("type", "unknown")
+            elements = color_info.get("elements", [])
+            
+            if color:
+                if color not in website_color_elements:
+                    website_color_elements[color] = []
+                for elem in elements[:3]:  # Limit to first 3 elements per color
+                    website_color_elements[color].append({
+                        "name": elem.get("name", "Unknown"),
+                        "selector": elem.get("selector", ""),
+                        "type": color_type,
+                        "coordinates": elem.get("coordinates", {})
+                    })
+        
+        # Also get simple color list for matching
         website_colors = set(c.lower() for c in website_data.get("colors", []))
         
-        # Find missing colors (in Figma but not on website)
-        for figma_color in figma_colors:
+        # Find color mismatches
+        for figma_color, figma_elements in figma_color_elements.items():
             try:
                 figma_rgb = hex_to_rgb(figma_color)
                 
@@ -191,18 +219,35 @@ class UIComparator:
                         continue
                 
                 if not matched and closest_color:
-                    # Color mismatch found
+                    # Color mismatch found - include element info
                     web_rgb = hex_to_rgb(closest_color)
                     comparison = self.color_analyzer.compare_colors(figma_rgb, web_rgb)
+                    
+                    # Get element info from both sides
+                    figma_elem = figma_elements[0] if figma_elements else {}
+                    web_elems = website_color_elements.get(closest_color, [])
+                    web_elem = web_elems[0] if web_elems else {}
+                    
+                    # Build element description
+                    element_name = figma_elem.get("name", "Unknown element")
+                    element_selector = web_elem.get("selector", "")
+                    color_type = web_elem.get("type", figma_elem.get("type", "color"))
+                    coordinates = web_elem.get("coordinates") or figma_elem.get("coordinates")
+                    
+                    # Create detailed description
+                    description = f"{color_type.capitalize()} color mismatch: Figma {figma_color} vs Website {closest_color}"
                     
                     differences.append(Difference(
                         id=str(uuid.uuid4()),
                         type=DifferenceType.COLOR,
                         severity=SeverityLevel.WARNING if comparison["delta_percentage"] < 10 else SeverityLevel.CRITICAL,
+                        element_name=element_name,
+                        element_selector=element_selector,
                         figma_value=figma_color,
                         website_value=closest_color,
                         delta=f"{comparison['delta_percentage']:.1f}% difference",
-                        description=f"Color mismatch: Figma {figma_color} vs Website {closest_color}"
+                        description=description,
+                        coordinates=coordinates
                     ))
                     
             except Exception as e:

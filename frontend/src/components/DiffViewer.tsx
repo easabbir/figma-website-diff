@@ -12,6 +12,7 @@ interface Difference {
   delta?: string
   description: string
   screenshot_url?: string
+  coordinates?: { x: number; y: number }
 }
 
 interface DiffViewerProps {
@@ -138,15 +139,25 @@ export default function DiffViewer({ differences }: DiffViewerProps) {
                 <div className="flex items-start gap-3 flex-1">
                   {getSeverityIcon(diff.severity)}
                   <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
                       {getTypeBadge(diff.type)}
-                      {diff.element_selector && (
-                        <code className="text-xs bg-white px-2 py-1 rounded">
-                          {diff.element_selector}
-                        </code>
+                      {diff.element_name && (
+                        <span className="text-sm font-semibold text-gray-800 bg-white px-2 py-1 rounded border border-gray-200">
+                          📍 {diff.element_name}
+                        </span>
+                      )}
+                      {diff.coordinates && (
+                        <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                          Position: ({diff.coordinates.x}, {diff.coordinates.y})
+                        </span>
                       )}
                     </div>
                     <p className="text-gray-900 font-medium">{diff.description}</p>
+                    {diff.element_selector && (
+                      <code className="text-xs text-gray-600 bg-white px-2 py-1 rounded mt-1 inline-block border border-gray-200">
+                        {diff.element_selector}
+                      </code>
+                    )}
                   </div>
                 </div>
                 {isExpanded ? (
@@ -159,9 +170,34 @@ export default function DiffViewer({ differences }: DiffViewerProps) {
               {/* Expanded Details */}
               {isExpanded && (
                 <div className="mt-4 pl-8 space-y-3">
+                  {/* Element Info */}
+                  {(diff.element_name || diff.element_selector) && (
+                    <div className="bg-white rounded-lg p-3 border border-gray-200">
+                      <p className="text-xs font-semibold text-gray-600 mb-2 uppercase">
+                        Element Details
+                      </p>
+                      {diff.element_name && (
+                        <p className="text-sm text-gray-900 mb-1">
+                          <span className="font-medium">Name:</span> {diff.element_name}
+                        </p>
+                      )}
+                      {diff.element_selector && (
+                        <p className="text-sm text-gray-900 mb-1">
+                          <span className="font-medium">Selector:</span>{' '}
+                          <code className="bg-gray-100 px-1 rounded">{diff.element_selector}</code>
+                        </p>
+                      )}
+                      {diff.coordinates && (
+                        <p className="text-sm text-gray-900">
+                          <span className="font-medium">Location:</span> x={diff.coordinates.x}, y={diff.coordinates.y}
+                        </p>
+                      )}
+                    </div>
+                  )}
+
                   {diff.figma_value !== null && diff.website_value !== null && (
                     <div className="grid grid-cols-2 gap-4">
-                      <div className="bg-white rounded-lg p-3">
+                      <div className="bg-white rounded-lg p-3 border border-gray-200">
                         <p className="text-xs font-semibold text-gray-600 mb-1 uppercase">
                           Figma Design
                         </p>
@@ -170,26 +206,38 @@ export default function DiffViewer({ differences }: DiffViewerProps) {
                             ? JSON.stringify(diff.figma_value)
                             : diff.figma_value}
                         </p>
+                        {diff.type === 'color' && diff.figma_value && (
+                          <div 
+                            className="w-full h-6 mt-2 rounded border border-gray-300"
+                            style={{ backgroundColor: diff.figma_value }}
+                          />
+                        )}
                       </div>
-                      <div className="bg-white rounded-lg p-3">
+                      <div className="bg-white rounded-lg p-3 border border-gray-200">
                         <p className="text-xs font-semibold text-gray-600 mb-1 uppercase">
-                          Website
+                          Website Implementation
                         </p>
                         <p className="text-sm font-mono text-gray-900">
                           {typeof diff.website_value === 'object'
                             ? JSON.stringify(diff.website_value)
                             : diff.website_value || 'Not found'}
                         </p>
+                        {diff.type === 'color' && diff.website_value && (
+                          <div 
+                            className="w-full h-6 mt-2 rounded border border-gray-300"
+                            style={{ backgroundColor: diff.website_value }}
+                          />
+                        )}
                       </div>
                     </div>
                   )}
 
                   {diff.delta && (
-                    <div className="bg-white rounded-lg p-3">
-                      <p className="text-xs font-semibold text-gray-600 mb-1 uppercase">
-                        Delta
+                    <div className="bg-white rounded-lg p-3 border border-orange-200 bg-orange-50">
+                      <p className="text-xs font-semibold text-orange-700 mb-1 uppercase">
+                        Difference
                       </p>
-                      <p className="text-sm text-gray-900">{diff.delta}</p>
+                      <p className="text-sm text-orange-900 font-medium">{diff.delta}</p>
                     </div>
                   )}
                 </div>

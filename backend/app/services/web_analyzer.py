@@ -231,6 +231,157 @@ class WebsiteAnalyzer:
         finally:
             await page.close()
     
+    async def extract_colors_with_elements(self, url: str, viewport: Optional[Dict] = None) -> List[Dict]:
+        """
+        Extract all colors with their element information.
+        
+        Args:
+            url: Website URL
+            viewport: Viewport dimensions
+            
+        Returns:
+            List of color info with element details
+        """
+        page = await self.browser.new_page(
+            viewport=viewport or {"width": 1920, "height": 1080}
+        )
+        
+        try:
+            await page.goto(url, wait_until="networkidle", timeout=self.timeout)
+            
+            color_elements = await page.evaluate("""
+                () => {
+                    const colorMap = new Map();
+                    
+                    function rgbToHex(rgb) {
+                        const match = rgb.match(/^rgba?\\((\\d+),\\s*(\\d+),\\s*(\\d+)(?:,\\s*[\\d.]+)?\\)$/);
+                        if (!match) return rgb;
+                        
+                        const r = parseInt(match[1]);
+                        const g = parseInt(match[2]);
+                        const b = parseInt(match[3]);
+                        
+                        return '#' + [r, g, b].map(x => {
+                            const hex = x.toString(16);
+                            return hex.length === 1 ? '0' + hex : hex;
+                        }).join('');
+                    }
+                    
+                    function getSelector(element) {
+                        if (element.id) return '#' + element.id;
+                        
+                        let selector = element.tagName.toLowerCase();
+                        if (element.className && typeof element.className === 'string') {
+                            const classes = element.className.trim().split(/\\s+/).filter(c => c).slice(0, 2);
+                            if (classes.length > 0) {
+                                selector += '.' + classes.join('.');
+                            }
+                        }
+                        return selector;
+                    }
+                    
+                    function getElementName(element) {
+                        // Try to get a meaningful name
+                        if (element.id) return element.id;
+                        if (element.getAttribute('aria-label')) return element.getAttribute('aria-label');
+                        if (element.getAttribute('name')) return element.getAttribute('name');
+                        if (element.getAttribute('alt')) return element.getAttribute('alt');
+                        
+                        // Use text content if short
+                        const text = element.textContent?.trim();
+                        if (text && text.length <= 30) return text;
+                        if (text && text.length > 30) return text.substring(0, 30) + '...';
+                        
+                        // Fall back to tag + class
+                        const classes = element.className && typeof element.className === 'string' 
+                            ? element.className.trim().split(/\\s+/).filter(c => c).slice(0, 2).join(' ')
+                            : '';
+                        return element.tagName.toLowerCase() + (classes ? ' (' + classes + ')' : '');
+                    }
+                    
+                    document.querySelectorAll('*').forEach(element => {
+                        const style = window.getComputedStyle(element);
+                        const rect = element.getBoundingClientRect();
+                        
+                        // Skip invisible elements
+                        if (rect.width === 0 || rect.height === 0) return;
+                        if (style.display === 'none' || style.visibility === 'hidden') return;
+                        
+                        const selector = getSelector(element);
+                        const elementName = getElementName(element);
+                        const coords = { x: Math.round(rect.x), y: Math.round(rect.y) };
+                        
+                        // Extract text color
+                        if (style.color && style.color !== 'rgba(0, 0, 0, 0)') {
+                            const hex = rgbToHex(style.color);
+                            if (hex.startsWith('#')) {
+                                const key = hex + '|text';
+                                if (!colorMap.has(key)) {
+                                    colorMap.set(key, {
+                                        color: hex,
+                                        type: 'text',
+                                        elements: []
+                                    });
+                                }
+                                colorMap.get(key).elements.push({
+                                    selector: selector,
+                                    name: elementName,
+                                    coordinates: coords
+                                });
+                            }
+                        }
+                        
+                        // Extract background color
+                        if (style.backgroundColor && style.backgroundColor !== 'rgba(0, 0, 0, 0)') {
+                            const hex = rgbToHex(style.backgroundColor);
+                            if (hex.startsWith('#')) {
+                                const key = hex + '|background';
+                                if (!colorMap.has(key)) {
+                                    colorMap.set(key, {
+                                        color: hex,
+                                        type: 'background',
+                                        elements: []
+                                    });
+                                }
+                                colorMap.get(key).elements.push({
+                                    selector: selector,
+                                    name: elementName,
+                                    coordinates: coords
+                                });
+                            }
+                        }
+                        
+                        // Extract border color
+                        if (style.borderColor && style.borderColor !== 'rgba(0, 0, 0, 0)' && 
+                            style.borderWidth !== '0px') {
+                            const hex = rgbToHex(style.borderColor);
+                            if (hex.startsWith('#')) {
+                                const key = hex + '|border';
+                                if (!colorMap.has(key)) {
+                                    colorMap.set(key, {
+                                        color: hex,
+                                        type: 'border',
+                                        elements: []
+                                    });
+                                }
+                                colorMap.get(key).elements.push({
+                                    selector: selector,
+                                    name: elementName,
+                                    coordinates: coords
+                                });
+                            }
+                        }
+                    });
+                    
+                    return Array.from(colorMap.values());
+                }
+            """)
+            
+            return color_elements
+            
+        finally:
+            await page.close()
+    
     async def extract_fonts(self, url: str, viewport: Optional[Dict] = None) -> List[Dict]:
         """
         Extract all fonts used on the page.
@@ -355,6 +506,9 @@ class WebsiteAnalyzer:
         # Extract colors
         colors = await self.extract_colors(url, viewport=viewport)
         
+        # Extract colors with element info for detailed comparison
+        colors_with_elements = await self.extract_colors_with_elements(url, viewport=viewport)
+        
         # Extract fonts
         fonts = await self.extract_fonts(url, viewport=viewport)
         
@@ -365,6 +519,7 @@ class WebsiteAnalyzer:
             "screenshot": str(screenshot_path),
             "dom_structure": dom_structure,
             "colors": colors,
+            "colors_with_elements": colors_with_elements,
             "fonts": fonts,
             "metadata": {
                 "total_elements": self._count_elements(dom_structure),
