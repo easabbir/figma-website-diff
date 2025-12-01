@@ -7,7 +7,7 @@ import FigmaOAuth from './FigmaOAuth'
 interface CachedFormData {
   figmaUrl: string
   figmaToken: string
-  figmaNodeId: string
+  figmaNodeId?: string
   websiteUrl: string
   viewportWidth: string
   viewportHeight: string

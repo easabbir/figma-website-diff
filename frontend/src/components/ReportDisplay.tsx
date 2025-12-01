@@ -11,6 +11,7 @@ import DiffViewer from './DiffViewer'
 interface ReportDisplayProps {
   jobId: string
   onBack: () => void
+  fromHistory?: boolean  // If true, skip progress polling and fetch report directly
 }
 
 interface DiffReport {
@@ -31,7 +32,7 @@ interface DiffReport {
   error?: string
 }
 
-export default function ReportDisplay({ jobId, onBack }: ReportDisplayProps) {
+export default function ReportDisplay({ jobId, onBack, fromHistory = false }: ReportDisplayProps) {
   const [report, setReport] = useState<DiffReport | null>(null)
   const [progress, setProgress] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -50,17 +51,23 @@ export default function ReportDisplay({ jobId, onBack }: ReportDisplayProps) {
         if ((response.data.status === 'completed' || response.data.status === 'failed') && !reportFetched) {
           reportFetched = true
           clearInterval(progressInterval)
-          fetchReport()
+          fetchReport(false)
         }
       } catch (err: any) {
         console.error('Error fetching progress:', err)
         clearInterval(progressInterval)
-        setError(`Failed to fetch progress: ${err.message}`)
-        setLoading(false)
+        // If from history and progress not found, try to fetch report directly
+        if (fromHistory) {
+          console.log('Progress not found for historical job, fetching report directly')
+          fetchReport(true)
+        } else {
+          setError(`Failed to fetch progress: ${err.message}`)
+          setLoading(false)
+        }
       }
     }
 
-    const fetchReport = async () => {
+    const fetchReport = async (isHistorical: boolean) => {
       try {
         const response = await axios.get(`/api/v1/report/${jobId}`)
         
@@ -74,7 +81,8 @@ export default function ReportDisplay({ jobId, onBack }: ReportDisplayProps) {
         if (response.data.status === 'failed') {
           setError(response.data.error || 'Comparison failed')
           toast.error('Comparison failed')
-        } else {
+        } else if (!isHistorical) {
+          // Only show toast for new comparisons, not historical ones
           toast.success('Comparison completed!')
         }
       } catch (err: any) {
@@ -90,11 +98,16 @@ export default function ReportDisplay({ jobId, onBack }: ReportDisplayProps) {
       }
     }
 
-    // Poll for progress only - report will be fetched when progress shows completion
-    progressInterval = setInterval(fetchProgress, 1000)
-
-    // Initial fetch
-    fetchProgress()
+    // If from history, try to fetch report directly first
+    if (fromHistory) {
+      setProgress(100)
+      fetchReport(true)
+    } else {
+      // Poll for progress only - report will be fetched when progress shows completion
+      progressInterval = setInterval(fetchProgress, 1000)
+      // Initial fetch
+      fetchProgress()
+    }
 
     return () => {
       clearInterval(progressInterval)
