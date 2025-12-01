@@ -91,7 +91,8 @@ export default function HistoryView({ onSelectJob, onClose }: HistoryViewProps) 
   }
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString)
+    // Ensure UTC timestamp is properly converted to local time
+    const date = new Date(dateString.endsWith('Z') ? dateString : dateString + 'Z')
     return date.toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
