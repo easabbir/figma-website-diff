@@ -137,14 +137,15 @@ class PDFReportGenerator:
         story.append(Paragraph("Executive Summary", self.styles['SectionHeader']))
         
         if report.summary:
-            # Match Score
+            # Match Score - label first, then score
+            story.append(Paragraph("Overall Match Score", self.styles['ReportSubtitle']))
+            story.append(Spacer(1, 10))
             score_color = self._get_score_color(report.summary.match_score)
             story.append(Paragraph(
                 f"<font color='{score_color}'>{report.summary.match_score:.1f}%</font>",
                 self.styles['ScoreStyle']
             ))
-            story.append(Paragraph("Overall Match Score", self.styles['ReportSubtitle']))
-            story.append(Spacer(1, 20))
+            story.append(Spacer(1, 30))
             
             # Summary table
             summary_data = [
