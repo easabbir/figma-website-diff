@@ -48,9 +48,11 @@ export default function ComparisonForm({ onComparisonStart, cachedData, onShowHi
   useEffect(() => {
     if (figmaUrl) {
       const extractedNodeId = extractNodeIdFromUrl(figmaUrl)
-      if (extractedNodeId && !figmaNodeId) {
-        setFigmaNodeId(extractedNodeId)
-      }
+      // Always update node ID when URL changes (even if there's an existing one)
+      setFigmaNodeId(extractedNodeId)
+    } else {
+      // Clear node ID when URL is cleared
+      setFigmaNodeId('')
     }
   }, [figmaUrl])
 

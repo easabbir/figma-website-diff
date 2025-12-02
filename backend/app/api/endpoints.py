@@ -1,6 +1,6 @@
 """API endpoints for Figma-Website comparison."""
 
-from fastapi import APIRouter, HTTPException, BackgroundTasks, UploadFile, File, Query
+from fastapi import APIRouter, HTTPException, BackgroundTasks, UploadFile, File, Query, Depends
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from typing import Dict, Optional, List
 import uuid
@@ -23,12 +23,14 @@ from ..models.schemas import (
     HistoryStats,
     SeverityLevel
 )
+from ..models.user import UserResponse
 from ..services.figma_extractor import FigmaExtractor
 from ..services.web_analyzer import analyze_website_async
 from ..services.comparator import UIComparator
 from ..services.report_generator import ReportGenerator
 from ..services.pdf_generator import PDFReportGenerator
 from ..services.figma_oauth import figma_oauth
+from ..services.auth import get_current_user
 from ..models.database import history_db
 from ..config import get_settings
 
@@ -46,7 +48,8 @@ async def process_comparison_job(
     job_id: str,
     figma_input: dict,
     website_url: str,
-    options: dict
+    options: dict,
+    user_id: Optional[str] = None
 ):
     """
     Background task to process comparison job.
@@ -56,6 +59,7 @@ async def process_comparison_job(
         figma_input: Figma input configuration
         website_url: Website URL
         options: Comparison options
+        user_id: User ID for privacy
     """
     try:
         # Update progress
@@ -78,7 +82,8 @@ async def process_comparison_job(
             figma_url=figma_input.get("value", ""),
             website_url=website_url,
             viewport=viewport,
-            viewport_name="desktop"
+            viewport_name="desktop",
+            user_id=user_id
         )
         
         # Step 1: Extract Figma data
@@ -197,7 +202,8 @@ async def process_comparison_job(
 @router.post("/compare", response_model=ComparisonResponse)
 async def create_comparison(
     request: ComparisonRequest,
-    background_tasks: BackgroundTasks
+    background_tasks: BackgroundTasks,
+    current_user: Optional[UserResponse] = Depends(get_current_user)
 ) -> ComparisonResponse:
     """
     Create a new UI comparison job.
@@ -205,6 +211,7 @@ async def create_comparison(
     Args:
         request: Comparison request with Figma and website details
         background_tasks: FastAPI background tasks
+        current_user: Current authenticated user (optional)
         
     Returns:
         Response with job ID and status
@@ -212,7 +219,10 @@ async def create_comparison(
     # Generate job ID
     job_id = str(uuid.uuid4())
     
-    logger.info(f"Creating comparison job {job_id}")
+    # Get user ID if authenticated
+    user_id = current_user.id if current_user else None
+    
+    logger.info(f"Creating comparison job {job_id} for user {user_id}")
     
     # Initialize progress
     job_progress[job_id] = ProgressUpdate(
@@ -228,7 +238,8 @@ async def create_comparison(
         job_id,
         request.figma_input.model_dump(),
         request.website_url,
-        request.options.model_dump() if request.options else {}
+        request.options.model_dump() if request.options else {},
+        user_id
     )
     
     return ComparisonResponse(
@@ -408,10 +419,12 @@ async def get_comparison_history(
     offset: int = Query(0, ge=0),
     website_url: Optional[str] = None,
     project_name: Optional[str] = None,
-    status: Optional[str] = None
+    status: Optional[str] = None,
+    current_user: Optional[UserResponse] = Depends(get_current_user)
 ) -> HistoryResponse:
     """
     Get comparison history with optional filters.
+    Only returns comparisons belonging to the current user.
     
     Args:
         limit: Maximum number of results
@@ -419,16 +432,21 @@ async def get_comparison_history(
         website_url: Filter by website URL
         project_name: Filter by project name
         status: Filter by status
+        current_user: Current authenticated user
         
     Returns:
         List of historical comparisons
     """
+    # Get user ID for privacy filtering
+    user_id = current_user.id if current_user else None
+    
     items = history_db.get_history(
         limit=limit,
         offset=offset,
         website_url=website_url,
         project_name=project_name,
-        status=status
+        status=status,
+        user_id=user_id
     )
     
     history_items = []
@@ -462,9 +480,12 @@ async def get_comparison_history(
 
 
 @router.get("/history/stats", response_model=HistoryStats)
-async def get_history_stats() -> HistoryStats:
-    """Get overall statistics for comparison history."""
-    stats = history_db.get_stats()
+async def get_history_stats(
+    current_user: Optional[UserResponse] = Depends(get_current_user)
+) -> HistoryStats:
+    """Get overall statistics for comparison history (user-specific)."""
+    user_id = current_user.id if current_user else None
+    stats = history_db.get_stats(user_id=user_id)
     return HistoryStats(
         total_comparisons=stats.get("total_comparisons", 0) or 0,
         avg_match_score=stats.get("avg_match_score", 0.0) or 0.0,
@@ -474,18 +495,25 @@ async def get_history_stats() -> HistoryStats:
 
 
 @router.delete("/history/{job_id}")
-async def delete_history_item(job_id: str) -> Dict:
-    """Delete a comparison from history."""
-    deleted = history_db.delete_comparison(job_id)
+async def delete_history_item(
+    job_id: str,
+    current_user: Optional[UserResponse] = Depends(get_current_user)
+) -> Dict:
+    """Delete a comparison from history (only if owned by user)."""
+    user_id = current_user.id if current_user else None
+    deleted = history_db.delete_comparison(job_id, user_id=user_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="History item not found")
     return {"message": f"History item {job_id} deleted successfully"}
 
 
 @router.delete("/history")
-async def delete_all_history() -> Dict:
-    """Delete all comparison history."""
-    count = history_db.delete_all()
+async def delete_all_history(
+    current_user: Optional[UserResponse] = Depends(get_current_user)
+) -> Dict:
+    """Delete all comparison history for the current user."""
+    user_id = current_user.id if current_user else None
+    count = history_db.delete_all(user_id=user_id)
     return {"message": f"Deleted {count} history items"}
 
 

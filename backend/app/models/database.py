@@ -31,6 +31,7 @@ def init_database():
         CREATE TABLE IF NOT EXISTS comparisons (
             id TEXT PRIMARY KEY,
             job_id TEXT UNIQUE NOT NULL,
+            user_id TEXT,
             figma_url TEXT,
             website_url TEXT NOT NULL,
             viewport_width INTEGER DEFAULT 1920,
@@ -49,6 +50,12 @@ def init_database():
             tags TEXT
         )
     """)
+    
+    # Add user_id column if it doesn't exist (migration for existing databases)
+    try:
+        cursor.execute("ALTER TABLE comparisons ADD COLUMN user_id TEXT")
+    except:
+        pass  # Column already exists
     
     # Create viewport_results table for responsive mode
     cursor.execute("""
@@ -117,7 +124,8 @@ class ComparisonHistory:
                        viewport: Dict[str, int],
                        viewport_name: str = "desktop",
                        project_name: Optional[str] = None,
-                       tags: Optional[List[str]] = None) -> str:
+                       tags: Optional[List[str]] = None,
+                       user_id: Optional[str] = None) -> str:
         """
         Save a new comparison to history.
         
@@ -131,13 +139,14 @@ class ComparisonHistory:
         
         cursor.execute("""
             INSERT INTO comparisons (
-                id, job_id, figma_url, website_url, 
+                id, job_id, user_id, figma_url, website_url, 
                 viewport_width, viewport_height, viewport_name,
                 project_name, tags, status
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             comparison_id,
             job_id,
+            user_id,
             figma_url,
             website_url,
             viewport.get("width", 1920),
@@ -151,7 +160,7 @@ class ComparisonHistory:
         conn.commit()
         conn.close()
         
-        logger.info(f"Saved comparison {comparison_id} to history")
+        logger.info(f"Saved comparison {comparison_id} to history for user {user_id}")
         return comparison_id
     
     def update_comparison_result(self,
@@ -216,7 +225,8 @@ class ComparisonHistory:
                    offset: int = 0,
                    website_url: Optional[str] = None,
                    project_name: Optional[str] = None,
-                   status: Optional[str] = None) -> List[Dict[str, Any]]:
+                   status: Optional[str] = None,
+                   user_id: Optional[str] = None) -> List[Dict[str, Any]]:
         """
         Get comparison history with optional filters.
         
@@ -226,6 +236,7 @@ class ComparisonHistory:
             website_url: Filter by website URL
             project_name: Filter by project name
             status: Filter by status
+            user_id: Filter by user ID (for privacy)
             
         Returns:
             List of comparison records
@@ -235,6 +246,11 @@ class ComparisonHistory:
         
         query = "SELECT * FROM comparisons WHERE 1=1"
         params = []
+        
+        # Filter by user_id for privacy
+        if user_id:
+            query += " AND user_id = ?"
+            params.append(user_id)
         
         if website_url:
             query += " AND website_url LIKE ?"
@@ -257,32 +273,46 @@ class ComparisonHistory:
         
         return [dict(row) for row in rows]
     
-    def get_stats(self) -> Dict[str, Any]:
-        """Get overall statistics."""
+    def get_stats(self, user_id: Optional[str] = None) -> Dict[str, Any]:
+        """Get overall statistics for a user."""
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        cursor.execute("""
-            SELECT 
-                COUNT(*) as total_comparisons,
-                AVG(match_score) as avg_match_score,
-                SUM(total_differences) as total_differences_found,
-                COUNT(DISTINCT website_url) as unique_websites
-            FROM comparisons
-            WHERE status = 'completed'
-        """)
+        if user_id:
+            cursor.execute("""
+                SELECT 
+                    COUNT(*) as total_comparisons,
+                    AVG(match_score) as avg_match_score,
+                    SUM(total_differences) as total_differences_found,
+                    COUNT(DISTINCT website_url) as unique_websites
+                FROM comparisons
+                WHERE status = 'completed' AND user_id = ?
+            """, (user_id,))
+        else:
+            cursor.execute("""
+                SELECT 
+                    COUNT(*) as total_comparisons,
+                    AVG(match_score) as avg_match_score,
+                    SUM(total_differences) as total_differences_found,
+                    COUNT(DISTINCT website_url) as unique_websites
+                FROM comparisons
+                WHERE status = 'completed'
+            """)
         
         row = cursor.fetchone()
         conn.close()
         
         return dict(row) if row else {}
     
-    def delete_comparison(self, job_id: str) -> bool:
-        """Delete a comparison from history."""
+    def delete_comparison(self, job_id: str, user_id: Optional[str] = None) -> bool:
+        """Delete a comparison from history (only if owned by user)."""
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        cursor.execute("DELETE FROM comparisons WHERE job_id = ?", (job_id,))
+        if user_id:
+            cursor.execute("DELETE FROM comparisons WHERE job_id = ? AND user_id = ?", (job_id, user_id))
+        else:
+            cursor.execute("DELETE FROM comparisons WHERE job_id = ?", (job_id,))
         deleted = cursor.rowcount > 0
         
         conn.commit()
@@ -290,16 +320,28 @@ class ComparisonHistory:
         
         return deleted
     
-    def delete_all(self) -> int:
-        """Delete all comparisons from history."""
+    def delete_all(self, user_id: Optional[str] = None) -> int:
+        """Delete all comparisons from history for a user."""
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # Delete viewport results first (foreign key)
-        cursor.execute("DELETE FROM viewport_results")
-        # Delete all comparisons
-        cursor.execute("DELETE FROM comparisons")
-        count = cursor.rowcount
+        if user_id:
+            # Get comparison IDs for this user
+            cursor.execute("SELECT id FROM comparisons WHERE user_id = ?", (user_id,))
+            comparison_ids = [row[0] for row in cursor.fetchall()]
+            
+            if comparison_ids:
+                # Delete viewport results for these comparisons
+                placeholders = ','.join('?' * len(comparison_ids))
+                cursor.execute(f"DELETE FROM viewport_results WHERE comparison_id IN ({placeholders})", comparison_ids)
+                # Delete comparisons
+                cursor.execute(f"DELETE FROM comparisons WHERE user_id = ?", (user_id,))
+            count = len(comparison_ids)
+        else:
+            # Delete all (admin only)
+            cursor.execute("DELETE FROM viewport_results")
+            cursor.execute("DELETE FROM comparisons")
+            count = cursor.rowcount
         
         conn.commit()
         conn.close()
