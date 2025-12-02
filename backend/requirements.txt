@@ -38,6 +38,10 @@ python-multipart==0.0.6
 python-json-logger==2.0.7
 aiofiles==23.2.1
 
+# Authentication
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+
 # Report Generation
 jinja2==3.1.4
 reportlab==4.2.5

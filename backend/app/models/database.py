@@ -69,6 +69,19 @@ def init_database():
         )
     """)
     
+    # Create users table for authentication
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            id TEXT PRIMARY KEY,
+            email TEXT UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            full_name TEXT,
+            is_active INTEGER DEFAULT 1,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP
+        )
+    """)
+    
     # Create index for faster queries
     cursor.execute("""
         CREATE INDEX IF NOT EXISTS idx_comparisons_created_at 
@@ -78,6 +91,11 @@ def init_database():
     cursor.execute("""
         CREATE INDEX IF NOT EXISTS idx_comparisons_website_url 
         ON comparisons(website_url)
+    """)
+    
+    cursor.execute("""
+        CREATE INDEX IF NOT EXISTS idx_users_email 
+        ON users(email)
     """)
     
     conn.commit()
@@ -326,5 +344,96 @@ class ComparisonHistory:
         return [dict(row) for row in rows]
 
 
-# Global instance
+class UserDB:
+    """Manage users in SQLite database."""
+    
+    def __init__(self):
+        init_database()
+    
+    def create_user(self, user_id: str, email: str, password_hash: str, 
+                   full_name: Optional[str] = None) -> bool:
+        """Create a new user. Returns True if successful."""
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        try:
+            cursor.execute("""
+                INSERT INTO users (id, email, password_hash, full_name)
+                VALUES (?, ?, ?, ?)
+            """, (user_id, email.lower(), password_hash, full_name))
+            conn.commit()
+            return True
+        except sqlite3.IntegrityError:
+            # Email already exists
+            return False
+        finally:
+            conn.close()
+    
+    def get_user_by_email(self, email: str) -> Optional[Dict[str, Any]]:
+        """Get user by email."""
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT * FROM users WHERE email = ?
+        """, (email.lower(),))
+        
+        row = cursor.fetchone()
+        conn.close()
+        
+        if row:
+            return dict(row)
+        return None
+    
+    def get_user_by_id(self, user_id: str) -> Optional[Dict[str, Any]]:
+        """Get user by ID."""
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT * FROM users WHERE id = ?
+        """, (user_id,))
+        
+        row = cursor.fetchone()
+        conn.close()
+        
+        if row:
+            return dict(row)
+        return None
+    
+    def update_user(self, user_id: str, **kwargs) -> bool:
+        """Update user fields."""
+        if not kwargs:
+            return False
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Build update query
+        fields = []
+        values = []
+        for key, value in kwargs.items():
+            if key in ['full_name', 'is_active']:
+                fields.append(f"{key} = ?")
+                values.append(value)
+        
+        if not fields:
+            return False
+        
+        fields.append("updated_at = CURRENT_TIMESTAMP")
+        values.append(user_id)
+        
+        cursor.execute(f"""
+            UPDATE users SET {', '.join(fields)} WHERE id = ?
+        """, values)
+        
+        conn.commit()
+        updated = cursor.rowcount > 0
+        conn.close()
+        
+        return updated
+
+
+# Global instances
 history_db = ComparisonHistory()
+user_db = UserDB()

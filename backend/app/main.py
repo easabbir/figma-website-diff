@@ -7,7 +7,7 @@ from pathlib import Path
 import logging
 
 from .config import get_settings
-from .api import endpoints, websocket
+from .api import endpoints, websocket, auth_endpoints
 
 # Configure logging
 logging.basicConfig(
@@ -49,6 +49,7 @@ app.mount("/static", StaticFiles(directory=settings.OUTPUT_DIR), name="static")
 # Include routers
 app.include_router(endpoints.router, prefix=settings.API_V1_PREFIX, tags=["comparison"])
 app.include_router(websocket.router, prefix=settings.API_V1_PREFIX, tags=["websocket"])
+app.include_router(auth_endpoints.router, prefix=settings.API_V1_PREFIX, tags=["authentication"])
 
 
 @app.on_event("startup")
