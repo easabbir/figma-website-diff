@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { ArrowLeft, Download, CheckCircle, AlertCircle, Info, Loader2, FileText } from 'lucide-react'
+import { ArrowLeft, Download, CheckCircle, AlertCircle, Info, Loader2, FileText, ImageOff } from 'lucide-react'
 import axios from 'axios'
 import { toast } from 'react-toastify'
 import {
@@ -37,6 +37,10 @@ export default function ReportDisplay({ jobId, onBack, fromHistory = false }: Re
   const [progress, setProgress] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [viewMode, setViewMode] = useState<'slider' | 'sideBySide'>('slider')
+  const [figmaImageError, setFigmaImageError] = useState(false)
+  const [websiteImageError, setWebsiteImageError] = useState(false)
+  const [toastShown, setToastShown] = useState(false)
 
   useEffect(() => {
     let progressInterval: ReturnType<typeof setInterval>
@@ -79,11 +83,15 @@ export default function ReportDisplay({ jobId, onBack, fromHistory = false }: Re
         setLoading(false)
 
         if (response.data.status === 'failed') {
-          setError(response.data.error || 'Comparison failed')
-          toast.error('Comparison failed')
-        } else if (!isHistorical) {
-          // Only show toast for new comparisons, not historical ones
-          toast.success('Comparison completed!')
+          const errorMsg = response.data.error || 'Comparison failed'
+          setError(errorMsg)
+          
+          // Show toast only once - error is already displayed on the page
+          // No toast needed here as the error page provides full details
+        } else if (!isHistorical && !toastShown) {
+          // Only show toast for new comparisons, not historical ones, and only once
+          setToastShown(true)
+          toast.success('✅ Comparison completed successfully!')
         }
       } catch (err: any) {
         if (err.response?.status === 202) {
@@ -172,15 +180,64 @@ export default function ReportDisplay({ jobId, onBack, fromHistory = false }: Re
   }
 
   if (error || !report) {
+    // Parse error for user-friendly display
+    const errorMessage = error || 'Failed to load report'
+    const isRateLimit = errorMessage.includes('429') || errorMessage.toLowerCase().includes('too many requests')
+    const isForbidden = errorMessage.includes('403') || errorMessage.toLowerCase().includes('forbidden')
+    const isAuthError = errorMessage.includes('401') || errorMessage.toLowerCase().includes('unauthorized')
+    const isNotFound = errorMessage.includes('404') || errorMessage.toLowerCase().includes('not found')
+    const isTimeout = errorMessage.toLowerCase().includes('timeout')
+    
+    let errorTitle = 'Comparison Failed'
+    let errorDescription = errorMessage
+    let suggestion = ''
+    let icon = '❌'
+    
+    if (isRateLimit) {
+      errorTitle = 'Rate Limit Exceeded'
+      errorDescription = 'Figma API has temporarily blocked requests due to too many calls.'
+      suggestion = "Oops! You've hit the rate limit. Give it a moment and try again soon. For higher limits, consider using OAuth."
+      icon = '⏳'
+    } else if (isForbidden) {
+      errorTitle = 'Access Denied'
+      errorDescription = "You don't have permission to access this Figma file."
+      suggestion = "Make sure the file is shared with you or is publicly accessible. If using OAuth, try disconnecting and reconnecting to refresh permissions."
+      icon = '🚫'
+    } else if (isAuthError) {
+      errorTitle = 'Authentication Failed'
+      errorDescription = 'Your Figma token is invalid or has expired.'
+      suggestion = 'Please reconnect with OAuth or generate a new personal access token.'
+      icon = '🔑'
+    } else if (isNotFound) {
+      errorTitle = 'Design Not Found'
+      errorDescription = 'The Figma file or frame could not be found.'
+      suggestion = 'Please check your Figma URL and ensure the node ID is correct.'
+      icon = '🔍'
+    } else if (isTimeout) {
+      errorTitle = 'Request Timed Out'
+      errorDescription = 'The request took too long to complete.'
+      suggestion = 'Try with a smaller frame or check if the website is accessible.'
+      icon = '⏱️'
+    }
+    
     return (
       <div className="max-w-4xl mx-auto">
         <div className="card text-center py-12">
-          <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Error</h2>
-          <p className="text-gray-600 mb-6">{error || 'Failed to load report'}</p>
-          <button onClick={onBack} className="btn-primary">
-            Go Back
-          </button>
+          <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <span className="text-4xl">{icon}</span>
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">{errorTitle}</h2>
+          <p className="text-gray-600 mb-3 max-w-lg mx-auto">{errorDescription}</p>
+          {suggestion && (
+            <p className="text-sm text-primary-600 mb-6 max-w-lg mx-auto bg-primary-50 px-4 py-2 rounded-lg inline-block">
+              💡 {suggestion}
+            </p>
+          )}
+          <div className="mt-4">
+            <button onClick={onBack} className="btn-primary">
+              ← Try Again
+            </button>
+          </div>
         </div>
       </div>
     )
@@ -319,35 +376,113 @@ export default function ReportDisplay({ jobId, onBack, fromHistory = false }: Re
       </div>
 
       {/* Visual Comparison */}
-      {report.figma_screenshot_url && report.website_screenshot_url && (
+      {(report.figma_screenshot_url || report.website_screenshot_url) && (
         <div className="card mb-6">
-          <h3 className="text-xl font-bold text-gray-900 mb-4">
-            Visual Comparison
-          </h3>
-          <div className="rounded-lg overflow-hidden border-2 border-gray-200">
-            <ReactCompareSlider
-              itemOne={
-                <ReactCompareSliderImage
-                  src={report.figma_screenshot_url}
-                  alt="Figma Design"
-                />
-              }
-              itemTwo={
-                <ReactCompareSliderImage
-                  src={report.website_screenshot_url}
-                  alt="Website"
-                />
-              }
-              style={{
-                width: '100%',
-                height: 'auto',
-              }}
-            />
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xl font-bold text-gray-900">
+              Visual Comparison
+            </h3>
+            {report.figma_screenshot_url && report.website_screenshot_url && !figmaImageError && !websiteImageError && (
+              <div className="flex bg-gray-100 rounded-lg p-1">
+                <button
+                  onClick={() => setViewMode('slider')}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
+                    viewMode === 'slider' 
+                      ? 'bg-white text-gray-900 shadow-sm' 
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  Slider
+                </button>
+                <button
+                  onClick={() => setViewMode('sideBySide')}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
+                    viewMode === 'sideBySide' 
+                      ? 'bg-white text-gray-900 shadow-sm' 
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  Side by Side
+                </button>
+              </div>
+            )}
           </div>
-          <div className="flex justify-between text-sm text-gray-600 mt-2">
-            <span>← Figma Design</span>
-            <span>Website →</span>
-          </div>
+          
+          {/* Show slider if both images exist and no errors */}
+          {report.figma_screenshot_url && report.website_screenshot_url && !figmaImageError && !websiteImageError && viewMode === 'slider' ? (
+            <>
+              <div className="rounded-lg overflow-hidden border-2 border-gray-200">
+                <ReactCompareSlider
+                  itemOne={
+                    <ReactCompareSliderImage
+                      src={report.figma_screenshot_url}
+                      alt="Figma Design"
+                      onError={() => setFigmaImageError(true)}
+                    />
+                  }
+                  itemTwo={
+                    <ReactCompareSliderImage
+                      src={report.website_screenshot_url}
+                      alt="Website"
+                      onError={() => setWebsiteImageError(true)}
+                    />
+                  }
+                  style={{
+                    width: '100%',
+                    height: 'auto',
+                  }}
+                />
+              </div>
+              <div className="flex justify-between text-sm text-gray-600 mt-2">
+                <span>← Figma Design</span>
+                <span>Website →</span>
+              </div>
+            </>
+          ) : (
+            /* Show side-by-side view */
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="rounded-lg overflow-hidden border-2 border-gray-200">
+                <div className="bg-gradient-to-r from-purple-500 to-pink-500 px-4 py-2">
+                  <span className="text-sm font-medium text-white">Figma Design</span>
+                </div>
+                {report.figma_screenshot_url && !figmaImageError ? (
+                  <img 
+                    src={report.figma_screenshot_url} 
+                    alt="Figma Design" 
+                    className="w-full h-auto"
+                    onError={() => setFigmaImageError(true)}
+                  />
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-64 bg-gray-50">
+                    <ImageOff className="w-12 h-12 text-gray-300 mb-2" />
+                    <span className="text-gray-400">
+                      {figmaImageError ? 'Failed to load image' : 'No screenshot available'}
+                    </span>
+                  </div>
+                )}
+              </div>
+              <div className="rounded-lg overflow-hidden border-2 border-gray-200">
+                <div className="bg-gradient-to-r from-emerald-500 to-teal-500 px-4 py-2">
+                  <span className="text-sm font-medium text-white">Website</span>
+                </div>
+                {report.website_screenshot_url && !websiteImageError ? (
+                  <img 
+                    src={report.website_screenshot_url} 
+                    alt="Website" 
+                    className="w-full h-auto"
+                    onError={() => setWebsiteImageError(true)}
+                  />
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-64 bg-gray-50">
+                    <ImageOff className="w-12 h-12 text-gray-300 mb-2" />
+                    <span className="text-gray-400">
+                      {websiteImageError ? 'Failed to load image' : 'No screenshot available'}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       )}
 

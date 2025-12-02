@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { ToastContainer } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
 import { AuthProvider, useAuth } from './context/AuthContext'
@@ -29,7 +29,21 @@ function MainApp() {
   const [showHistory, setShowHistory] = useState(false)
   const [cachedFormData, setCachedFormData] = useState<CachedFormData | null>(null)
   const [isFromHistory, setIsFromHistory] = useState(false)
-  const { isAuthenticated, isLoading } = useAuth()
+  const { isAuthenticated, isLoading, user } = useAuth()
+  const prevUserIdRef = useRef<string | null>(null)
+
+  // Clear form data when user changes (login/logout)
+  useEffect(() => {
+    const currentUserId = user?.id || null
+    if (prevUserIdRef.current !== null && prevUserIdRef.current !== currentUserId) {
+      // User changed - clear form and report
+      setCachedFormData(null)
+      setComparisonResult(null)
+      setShowReport(false)
+      setIsFromHistory(false)
+    }
+    prevUserIdRef.current = currentUserId
+  }, [user])
 
   const handleComparisonStart = (result: ComparisonResult, formData: CachedFormData) => {
     setCachedFormData(formData)

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Play, Figma, Globe, Settings, Clock } from 'lucide-react'
+import { Play, Figma, Globe, Settings, Clock, Sparkles, Palette, Ruler, Type, ChevronDown, ChevronUp, Zap } from 'lucide-react'
 import { toast } from 'react-toastify'
 import axios from 'axios'
 import FigmaOAuth from './FigmaOAuth'
@@ -122,7 +122,7 @@ export default function ComparisonForm({ onComparisonStart, cachedData, onShowHi
         },
       })
 
-      toast.success('Comparison started successfully!')
+      // Don't show success toast here - wait for actual completion in ReportDisplay
       onComparisonStart(
         {
           jobId: response.data.job_id,
@@ -148,244 +148,305 @@ export default function ComparisonForm({ onComparisonStart, cachedData, onShowHi
 
   return (
     <div className="max-w-4xl mx-auto">
-      <div className="card">
-        <div className="mb-6">
+      {/* Hero Section */}
+      <div className="text-center mb-8">
+        <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-3">
+          Compare Your <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-600 to-purple-600">Design</span> to Reality
+        </h1>
+        <p className="text-gray-600 max-w-2xl mx-auto">
+          Instantly detect visual inconsistencies between your Figma designs and live website implementation
+        </p>
+      </div>
+
+      {/* Main Form Card */}
+      <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
+        {/* Card Header */}
+        <div className="bg-gradient-to-r from-primary-600 via-primary-700 to-purple-700 px-6 py-5">
           <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                Start New Comparison
-              </h2>
-              <p className="text-gray-600">
-                Enter your Figma design and website URL to begin the UI comparison
-              </p>
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
+                <Zap className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h2 className="text-xl font-semibold text-white">New Comparison</h2>
+                <p className="text-primary-100 text-sm">Enter your design and website details</p>
+              </div>
             </div>
             {onShowHistory && (
               <button
                 type="button"
                 onClick={onShowHistory}
-                className="btn-secondary flex items-center gap-2"
+                className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all border border-white/20"
               >
                 <Clock className="w-4 h-4" />
-                History
+                <span className="font-medium">History</span>
               </button>
             )}
           </div>
+        </div>
+
+        <div className="p-6 md:p-8">
           {cachedData && (
-            <div className="mt-3 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-700">
-              ℹ️ Previous inputs restored
+            <div className="mb-6 px-4 py-3 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl flex items-center gap-3">
+              <div className="p-1.5 bg-blue-100 rounded-lg">
+                <Sparkles className="w-4 h-4 text-blue-600" />
+              </div>
+              <span className="text-sm text-blue-700 font-medium">Previous inputs restored automatically</span>
             </div>
           )}
-        </div>
 
-        {/* OAuth Section */}
-        <div className="mb-6">
-          <FigmaOAuth onTokenChange={setHasOAuthToken} />
-        </div>
+          {/* OAuth Section */}
+          <div className="mb-8 p-4 bg-gradient-to-r from-gray-50 to-slate-50 rounded-xl border border-gray-200">
+            <FigmaOAuth onTokenChange={setHasOAuthToken} />
+          </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Figma Input */}
-          <div>
-            <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
-              <Figma className="w-5 h-5 text-primary-600" />
-              Figma Design
-            </label>
-            <input
-              type="url"
-              value={figmaUrl}
-              onChange={(e) => setFigmaUrl(e.target.value)}
-              placeholder="https://www.figma.com/design/ABC123/Design-Name?node-id=123-456"
-              className="input-field mb-3"
-              required
-            />
-            
-            {/* Node ID input - for large files */}
-            <div className="mb-3">
-              <label className="text-xs font-medium text-gray-600 mb-1 block">
-                Frame/Node ID (recommended for large files)
-              </label>
-              <input
-                type="text"
-                value={figmaNodeId}
-                onChange={(e) => setFigmaNodeId(e.target.value)}
-                placeholder="e.g., 4614-49797 (auto-extracted from URL)"
-                className="input-field text-sm"
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                💡 Specify a node ID to compare only that frame instead of the entire file. 
-                This is extracted automatically from the URL if present.
-              </p>
-            </div>
-            
-            {/* Token input - show toggle if OAuth is available */}
-            {hasOAuthToken ? (
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    id="useOAuth"
-                    checked={useOAuth}
-                    onChange={(e) => setUseOAuth(e.target.checked)}
-                    className="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
-                  />
-                  <label htmlFor="useOAuth" className="text-sm text-gray-700">
-                    Use OAuth token (recommended - higher rate limits)
-                  </label>
+          <form onSubmit={handleSubmit} className="space-y-8">
+            {/* Figma Input Section */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2.5 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl shadow-lg shadow-purple-200">
+                  <Figma className="w-5 h-5 text-white" />
                 </div>
-                {!useOAuth && (
+                <div>
+                  <h3 className="font-semibold text-gray-900">Figma Design</h3>
+                  <p className="text-xs text-gray-500">Paste your Figma file or frame URL</p>
+                </div>
+              </div>
+              
+              <div className="relative">
+                <input
+                  type="url"
+                  value={figmaUrl}
+                  onChange={(e) => setFigmaUrl(e.target.value)}
+                  placeholder="https://www.figma.com/design/ABC123/Design-Name?node-id=123-456"
+                  className="w-full px-4 py-3.5 bg-gray-50 border-2 border-gray-200 rounded-xl focus:border-primary-500 focus:bg-white focus:ring-4 focus:ring-primary-100 transition-all outline-none text-gray-900 placeholder-gray-400"
+                  required
+                />
+              </div>
+              
+              {/* Node ID input */}
+              <div className="pl-4 border-l-2 border-gray-200">
+                <label className="text-sm font-medium text-gray-600 mb-2 block flex items-center gap-2">
+                  <span>Frame/Node ID</span>
+                  <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-xs rounded-full">Recommended for large files</span>
+                </label>
+                <input
+                  type="text"
+                  value={figmaNodeId}
+                  onChange={(e) => setFigmaNodeId(e.target.value)}
+                  placeholder="e.g., 4614-49797 (auto-extracted from URL)"
+                  className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl focus:border-primary-500 focus:bg-white focus:ring-4 focus:ring-primary-100 transition-all outline-none text-gray-900 placeholder-gray-400 text-sm"
+                />
+                <p className="text-xs text-gray-500 mt-2 flex items-start gap-1.5">
+                  <span className="text-amber-500">💡</span>
+                  <span>Specify a node ID to compare only that frame. Auto-extracted from URL if present.</span>
+                </p>
+              </div>
+              
+              {/* Token input */}
+              {hasOAuthToken ? (
+                <div className="space-y-3 pl-4 border-l-2 border-gray-200">
+                  <label className="flex items-center gap-3 cursor-pointer group">
+                    <div className="relative">
+                      <input
+                        type="checkbox"
+                        id="useOAuth"
+                        checked={useOAuth}
+                        onChange={(e) => setUseOAuth(e.target.checked)}
+                        className="sr-only peer"
+                      />
+                      <div className="w-10 h-6 bg-gray-200 rounded-full peer-checked:bg-primary-600 transition-colors"></div>
+                      <div className="absolute left-1 top-1 w-4 h-4 bg-white rounded-full shadow peer-checked:translate-x-4 transition-transform"></div>
+                    </div>
+                    <span className="text-sm text-gray-700 group-hover:text-gray-900">
+                      Use OAuth token <span className="text-green-600 font-medium">(Connected ✓)</span>
+                    </span>
+                  </label>
+                  {!useOAuth && (
+                    <input
+                      type="text"
+                      value={figmaToken}
+                      onChange={(e) => setFigmaToken(e.target.value)}
+                      placeholder="Figma API Token (personal token)"
+                      className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl focus:border-primary-500 focus:bg-white focus:ring-4 focus:ring-primary-100 transition-all outline-none text-gray-900 placeholder-gray-400"
+                      required
+                    />
+                  )}
+                </div>
+              ) : (
+                <div className="pl-4 border-l-2 border-gray-200">
                   <input
                     type="text"
                     value={figmaToken}
                     onChange={(e) => setFigmaToken(e.target.value)}
-                    placeholder="Figma API Token (personal token)"
-                    className="input-field"
+                    placeholder="Figma API Token"
+                    className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl focus:border-primary-500 focus:bg-white focus:ring-4 focus:ring-primary-100 transition-all outline-none text-gray-900 placeholder-gray-400"
                     required
                   />
-                )}
-              </div>
-            ) : (
-              <>
-                <input
-                  type="text"
-                  value={figmaToken}
-                  onChange={(e) => setFigmaToken(e.target.value)}
-                  placeholder="Figma API Token (get from figma.com/developers)"
-                  className="input-field"
-                  required
-                />
-                <p className="text-xs text-gray-500 mt-2">
-                  💡 Get your API token from{' '}
-                  <a
-                    href="https://www.figma.com/developers/api#access-tokens"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-primary-600 hover:underline"
-                  >
-                    Figma Developers
-                  </a>
-                  {' '}or connect with OAuth above for higher rate limits.
-                </p>
-              </>
-            )}
-          </div>
-
-          {/* Website Input */}
-          <div>
-            <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
-              <Globe className="w-5 h-5 text-green-600" />
-              Website URL
-            </label>
-            <input
-              type="url"
-              value={websiteUrl}
-              onChange={(e) => setWebsiteUrl(e.target.value)}
-              placeholder="https://example.com"
-              className="input-field"
-              required
-            />
-          </div>
-
-          {/* Advanced Settings */}
-          <div>
-            <button
-              type="button"
-              onClick={() => setShowAdvanced(!showAdvanced)}
-              className="flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-primary-600 transition-colors"
-            >
-              <Settings className="w-5 h-5" />
-              Advanced Settings
-              <span className="text-xs text-gray-500">
-                ({showAdvanced ? 'hide' : 'show'})
-              </span>
-            </button>
-
-            {showAdvanced && (
-              <div className="mt-4 p-4 bg-gray-50 rounded-lg space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm font-medium text-gray-700 mb-1 block">
-                      Viewport Width
-                    </label>
-                    <input
-                      type="number"
-                      value={viewportWidth}
-                      onChange={(e) => setViewportWidth(e.target.value)}
-                      className="input-field"
-                      min="320"
-                      max="3840"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-700 mb-1 block">
-                      Viewport Height
-                    </label>
-                    <input
-                      type="number"
-                      value={viewportHeight}
-                      onChange={(e) => setViewportHeight(e.target.value)}
-                      className="input-field"
-                      min="240"
-                      max="2160"
-                    />
-                  </div>
+                  <p className="text-xs text-gray-500 mt-2">
+                    Get your token from{' '}
+                    <a
+                      href="https://www.figma.com/developers/api#access-tokens"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary-600 hover:text-primary-700 font-medium hover:underline"
+                    >
+                      Figma Developers
+                    </a>
+                    {' '}or connect with OAuth above.
+                  </p>
                 </div>
+              )}
+            </div>
 
+            {/* Divider */}
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-200"></div>
+              </div>
+              <div className="relative flex justify-center">
+                <span className="px-4 bg-white text-gray-400 text-sm">compare with</span>
+              </div>
+            </div>
+
+            {/* Website Input Section */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2.5 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-xl shadow-lg shadow-emerald-200">
+                  <Globe className="w-5 h-5 text-white" />
+                </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-700 mb-1 block">
-                    Comparison Mode
-                  </label>
-                  <select
-                    value={comparisonMode}
-                    onChange={(e) => setComparisonMode(e.target.value)}
-                    className="input-field"
-                  >
-                    <option value="hybrid">Hybrid (Recommended)</option>
-                    <option value="structural">Structural Only</option>
-                    <option value="visual">Visual Only</option>
-                  </select>
+                  <h3 className="font-semibold text-gray-900">Website URL</h3>
+                  <p className="text-xs text-gray-500">Enter the live website to compare against</p>
                 </div>
               </div>
-            )}
-          </div>
+              
+              <input
+                type="url"
+                value={websiteUrl}
+                onChange={(e) => setWebsiteUrl(e.target.value)}
+                placeholder="https://example.com"
+                className="w-full px-4 py-3.5 bg-gray-50 border-2 border-gray-200 rounded-xl focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-100 transition-all outline-none text-gray-900 placeholder-gray-400"
+                required
+              />
+            </div>
 
-          {/* Submit Button */}
-          <button
-            type="submit"
-            disabled={loading}
-            className="btn-primary w-full flex items-center justify-center gap-2"
-          >
-            {loading ? (
-              <>
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                Processing...
-              </>
-            ) : (
-              <>
-                <Play className="w-5 h-5" />
-                Start Comparison
-              </>
-            )}
-          </button>
-        </form>
+            {/* Advanced Settings */}
+            <div className="border border-gray-200 rounded-xl overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setShowAdvanced(!showAdvanced)}
+                className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <Settings className="w-5 h-5 text-gray-500" />
+                  <span className="font-medium text-gray-700">Advanced Settings</span>
+                </div>
+                {showAdvanced ? (
+                  <ChevronUp className="w-5 h-5 text-gray-400" />
+                ) : (
+                  <ChevronDown className="w-5 h-5 text-gray-400" />
+                )}
+              </button>
+
+              {showAdvanced && (
+                <div className="p-4 bg-white border-t border-gray-200 space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium text-gray-700 mb-2 block">
+                        Viewport Width
+                      </label>
+                      <input
+                        type="number"
+                        value={viewportWidth}
+                        onChange={(e) => setViewportWidth(e.target.value)}
+                        className="w-full px-4 py-2.5 bg-gray-50 border-2 border-gray-200 rounded-lg focus:border-primary-500 focus:bg-white transition-all outline-none"
+                        min="320"
+                        max="3840"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-700 mb-2 block">
+                        Viewport Height
+                      </label>
+                      <input
+                        type="number"
+                        value={viewportHeight}
+                        onChange={(e) => setViewportHeight(e.target.value)}
+                        className="w-full px-4 py-2.5 bg-gray-50 border-2 border-gray-200 rounded-lg focus:border-primary-500 focus:bg-white transition-all outline-none"
+                        min="240"
+                        max="2160"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 mb-2 block">
+                      Comparison Mode
+                    </label>
+                    <select
+                      value={comparisonMode}
+                      onChange={(e) => setComparisonMode(e.target.value)}
+                      className="w-full px-4 py-2.5 bg-gray-50 border-2 border-gray-200 rounded-lg focus:border-primary-500 focus:bg-white transition-all outline-none cursor-pointer"
+                    >
+                      <option value="hybrid">Hybrid (Recommended)</option>
+                      <option value="structural">Structural Only</option>
+                      <option value="visual">Visual Only</option>
+                    </select>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Submit Button */}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-4 bg-gradient-to-r from-primary-600 to-purple-600 hover:from-primary-700 hover:to-purple-700 text-white font-semibold rounded-xl shadow-lg shadow-primary-200 hover:shadow-xl hover:shadow-primary-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 group"
+            >
+              {loading ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <span>Analyzing...</span>
+                </>
+              ) : (
+                <>
+                  <Play className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                  <span>Start Comparison</span>
+                </>
+              )}
+            </button>
+          </form>
+        </div>
       </div>
 
-      {/* Info Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
-        <div className="bg-white rounded-lg p-4 border border-gray-200">
-          <h3 className="font-semibold text-gray-900 mb-1">🎨 Colors</h3>
-          <p className="text-sm text-gray-600">
-            Detects color inconsistencies and brand guideline violations
+      {/* Feature Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mt-8">
+        <div className="group bg-white rounded-xl p-5 border border-gray-200 hover:border-primary-200 hover:shadow-lg hover:shadow-primary-100/50 transition-all">
+          <div className="w-12 h-12 bg-gradient-to-br from-pink-500 to-rose-500 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform shadow-lg shadow-pink-200">
+            <Palette className="w-6 h-6 text-white" />
+          </div>
+          <h3 className="font-semibold text-gray-900 mb-2">Color Analysis</h3>
+          <p className="text-sm text-gray-600 leading-relaxed">
+            Detects color inconsistencies and brand guideline violations with precision
           </p>
         </div>
-        <div className="bg-white rounded-lg p-4 border border-gray-200">
-          <h3 className="font-semibold text-gray-900 mb-1">📏 Spacing & Layout</h3>
-          <p className="text-sm text-gray-600">
-            Identifies spacing, alignment, and dimension differences
+        <div className="group bg-white rounded-xl p-5 border border-gray-200 hover:border-primary-200 hover:shadow-lg hover:shadow-primary-100/50 transition-all">
+          <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform shadow-lg shadow-blue-200">
+            <Ruler className="w-6 h-6 text-white" />
+          </div>
+          <h3 className="font-semibold text-gray-900 mb-2">Spacing & Layout</h3>
+          <p className="text-sm text-gray-600 leading-relaxed">
+            Identifies spacing, alignment, and dimension differences automatically
           </p>
         </div>
-        <div className="bg-white rounded-lg p-4 border border-gray-200">
-          <h3 className="font-semibold text-gray-900 mb-1">🔤 Typography</h3>
-          <p className="text-sm text-gray-600">
-            Compares fonts, sizes, weights, and text properties
+        <div className="group bg-white rounded-xl p-5 border border-gray-200 hover:border-primary-200 hover:shadow-lg hover:shadow-primary-100/50 transition-all">
+          <div className="w-12 h-12 bg-gradient-to-br from-amber-500 to-orange-500 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform shadow-lg shadow-amber-200">
+            <Type className="w-6 h-6 text-white" />
+          </div>
+          <h3 className="font-semibold text-gray-900 mb-2">Typography</h3>
+          <p className="text-sm text-gray-600 leading-relaxed">
+            Compares fonts, sizes, weights, and text properties across designs
           </p>
         </div>
       </div>

@@ -134,6 +134,11 @@ class UIComparator:
         if website_screenshot:
             # Website screenshot is typically at website/website_screenshot.png
             website_screenshot_url = f"/static/{job_id}/website/website_screenshot.png"
+            logger.info(f"Website screenshot URL: {website_screenshot_url}")
+        else:
+            # Try to set URL anyway if the file might exist
+            website_screenshot_url = f"/static/{job_id}/website/website_screenshot.png"
+            logger.warning(f"Website screenshot not in data, but setting URL anyway: {website_screenshot_url}")
         
         # Create report
         report = DiffReport(

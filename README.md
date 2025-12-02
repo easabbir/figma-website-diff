@@ -1,15 +1,31 @@
 # 🎨 Figma ↔ Website UI Comparison Tool
 
-A powerful Python + FastAPI tool that compares Figma designs with live websites to detect visual and UI inconsistencies. Features a modern React frontend with real-time progress updates.
+A powerful Python + FastAPI tool that compares Figma designs with live websites to detect visual and UI inconsistencies. Features a modern React frontend with real-time progress updates, user authentication, and elegant UI design.
 
-![Version](https://img.shields.io/badge/version-1.1.0-blue.svg)
+![Version](https://img.shields.io/badge/version-1.2.0-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.13-blue.svg)
 ![React](https://img.shields.io/badge/react-18.2-blue.svg)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.115-green.svg)
 
-## 🆕 Recent Updates (v1.1.0)
+## 🆕 Recent Updates (v1.2.0)
 
 ### New Features
+- ✅ **User Authentication** - Secure login/signup with JWT tokens
+- ✅ **User-Specific History** - Each user can only view their own comparison history
+- ✅ **Figma OAuth Integration** - Connect with Figma OAuth for seamless authentication
+- ✅ **Modern UI Design** - Elegant violet/purple gradient theme with glassmorphism effects
+- ✅ **Improved Error Handling** - Meaningful error messages for rate limits, auth errors, and more
+- ✅ **Password Visibility Toggle** - Show/hide password in login forms
+- ✅ **Delete All History** - Bulk delete comparison history with confirmation
+- ✅ **Form State Management** - Form clears on login/logout for better UX
+
+### UI Improvements
+- ✅ **Redesigned Auth Page** - Beautiful gradient background with floating orbs and feature cards
+- ✅ **Redesigned Comparison Form** - Modern styling with gradient buttons and improved layout
+- ✅ **Redesigned History Modal** - Consistent violet theme with stat cards and search functionality
+- ✅ **Scroll Lock on Modals** - Background doesn't scroll when modals are open
+
+### Previous Updates (v1.1.0)
 - ✅ **PDF Export** - Download professional PDF reports with executive summary and visual comparisons
 - ✅ **Comparison History** - View and manage past comparisons with SQLite storage
 - ✅ **Responsive Mode** - Compare designs across multiple viewports (mobile, tablet, desktop) in one run
@@ -47,12 +63,20 @@ A powerful Python + FastAPI tool that compares Figma designs with live websites 
   - Categorized differences (Critical/Warning/Info)
 
 - **💻 User-Friendly Interface**
-  - Drag-and-drop file upload
-  - Interactive diff viewer
+  - Modern violet/purple gradient design
+  - Secure user authentication (login/signup)
+  - Interactive diff viewer with slider
   - Real-time progress bar
   - Filter and search differences
   - **Form input caching** - preserves your inputs when navigating back
   - Supports both `/file/` and `/design/` Figma URL formats
+
+- **🔐 Security & Privacy**
+  - JWT-based authentication
+  - User-specific comparison history
+  - Figma OAuth integration
+  - Password visibility toggle
+  - Secure token storage
 
 ## 🏗️ Architecture
 
@@ -153,25 +177,37 @@ docker-compose up --build
 
 ## 📖 Usage
 
-### 1. **Get Figma API Token**
+### 1. **Create an Account**
+   - Open the web interface at `http://localhost:5173`
+   - Click "Sign Up" to create a new account
+   - Enter your email and password
+   - You'll be redirected to the comparison dashboard
+
+### 2. **Get Figma API Token** (Choose one method)
+   
+   **Option A: Personal Access Token**
    - Go to [Figma Settings](https://www.figma.com/settings)
    - Scroll to "Personal Access Tokens"
    - Click "Generate new token"
    - Copy and save the token
+   
+   **Option B: Figma OAuth (Recommended)**
+   - Click "Connect Figma" in the comparison form
+   - Authorize the app in Figma
+   - Your token will be automatically saved
 
-### 2. **Start a Comparison**
-   - Open the web interface at `http://localhost:5173`
+### 3. **Start a Comparison**
    - Enter your Figma file URL
-   - Paste your Figma API token
+   - Paste your Figma API token (or use OAuth)
    - Enter the website URL to compare
    - Click "Start Comparison"
 
-### 3. **View Results**
+### 4. **View Results**
    - Monitor real-time progress
    - View overall match score
    - Explore categorized differences
    - Download HTML or PDF report
-   - View comparison history
+   - View comparison history (your comparisons only)
 
 ### API Usage Example
 

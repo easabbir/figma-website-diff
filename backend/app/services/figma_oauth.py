@@ -31,7 +31,7 @@ class FigmaOAuthConfig:
         self.client_id = os.getenv("FIGMA_CLIENT_ID", "")
         self.client_secret = os.getenv("FIGMA_CLIENT_SECRET", "")
         self.redirect_uri = os.getenv("FIGMA_REDIRECT_URI", "http://localhost:8000/api/v1/oauth/callback")
-        # Figma OAuth scopes - file_content:read for reading files and rendering images
+        # Figma OAuth scopes - file_content:read for reading file content and rendering images
         self.scopes = "file_content:read"
     
     @property
