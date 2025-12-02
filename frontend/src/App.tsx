@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { ToastContainer } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
-import { AuthProvider } from './context/AuthContext'
+import { AuthProvider, useAuth } from './context/AuthContext'
 import ComparisonForm from './components/ComparisonForm'
 import ReportDisplay from './components/ReportDisplay'
 import Header from './components/Header'
 import HistoryView from './components/HistoryView'
+import AuthPage from './components/AuthPage'
 
 export interface ComparisonResult {
   jobId: string
@@ -22,12 +23,13 @@ export interface CachedFormData {
   comparisonMode: string
 }
 
-function App() {
+function MainApp() {
   const [comparisonResult, setComparisonResult] = useState<ComparisonResult | null>(null)
   const [showReport, setShowReport] = useState(false)
   const [showHistory, setShowHistory] = useState(false)
   const [cachedFormData, setCachedFormData] = useState<CachedFormData | null>(null)
   const [isFromHistory, setIsFromHistory] = useState(false)
+  const { isAuthenticated, isLoading } = useAuth()
 
   const handleComparisonStart = (result: ComparisonResult, formData: CachedFormData) => {
     setCachedFormData(formData)
@@ -39,7 +41,6 @@ function App() {
   const handleBack = () => {
     setShowReport(false)
     setIsFromHistory(false)
-    // Keep cachedFormData so form can restore it
   }
 
   const handleSelectFromHistory = (jobId: string) => {
@@ -49,43 +50,63 @@ function App() {
     setShowHistory(false)
   }
 
+  // Show loading spinner while checking auth
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
+        <div className="w-12 h-12 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin" />
+      </div>
+    )
+  }
+
+  // Show auth page if not authenticated
+  if (!isAuthenticated) {
+    return <AuthPage />
+  }
+
+  // Show main app if authenticated
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+      <Header />
+      
+      <main className="container mx-auto px-4 py-8 max-w-7xl">
+        {!showReport ? (
+          <ComparisonForm 
+            onComparisonStart={handleComparisonStart} 
+            cachedData={cachedFormData}
+            onShowHistory={() => setShowHistory(true)}
+          />
+        ) : (
+          <ReportDisplay jobId={comparisonResult?.jobId || ''} onBack={handleBack} fromHistory={isFromHistory} />
+        )}
+      </main>
+
+      {/* History Modal */}
+      {showHistory && (
+        <HistoryView
+          onSelectJob={handleSelectFromHistory}
+          onClose={() => setShowHistory(false)}
+        />
+      )}
+    </div>
+  )
+}
+
+function App() {
   return (
     <AuthProvider>
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-        <Header />
-        
-        <main className="container mx-auto px-4 py-8 max-w-7xl">
-          {!showReport ? (
-            <ComparisonForm 
-              onComparisonStart={handleComparisonStart} 
-              cachedData={cachedFormData}
-              onShowHistory={() => setShowHistory(true)}
-            />
-          ) : (
-            <ReportDisplay jobId={comparisonResult?.jobId || ''} onBack={handleBack} fromHistory={isFromHistory} />
-          )}
-        </main>
-
-        {/* History Modal */}
-        {showHistory && (
-          <HistoryView
-            onSelectJob={handleSelectFromHistory}
-            onClose={() => setShowHistory(false)}
-          />
-        )}
-
-        <ToastContainer
-          position="top-right"
-          autoClose={3000}
-          hideProgressBar={false}
-          newestOnTop
-          closeOnClick
-          rtl={false}
-          pauseOnFocusLoss
-          draggable
-          pauseOnHover
-        />
-      </div>
+      <MainApp />
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+      />
     </AuthProvider>
   )
 }
