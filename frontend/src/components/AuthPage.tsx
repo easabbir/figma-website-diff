@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Mail, Lock, User, Loader2, Layers, CheckCircle, ArrowRight } from 'lucide-react'
+import { Mail, Lock, User, Loader2, Layers, CheckCircle, ArrowRight, Eye, EyeOff } from 'lucide-react'
 import { toast } from 'react-toastify'
 import { useAuth } from '../context/AuthContext'
 
@@ -11,6 +11,7 @@ export default function AuthPage() {
   const [password, setPassword] = useState('')
   const [fullName, setFullName] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
   const { login, signup } = useAuth()
 
   const resetForm = () => {
@@ -90,7 +91,7 @@ export default function AuthPage() {
         </div>
 
         <div className="text-primary-300 text-sm">
-          © 2024 UI Diff Checker. All rights reserved.
+          © 2025 UI Diff Checker. All rights reserved.
         </div>
       </div>
 
@@ -185,14 +186,21 @@ export default function AuthPage() {
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                   <input
-                    type="password"
+                    type={showPassword ? 'text' : 'password'}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Enter your password"
                     required
                     minLength={6}
-                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                    className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
                 </div>
                 {activeTab === 'signup' && (
                   <p className="text-xs text-gray-500 mt-1.5">

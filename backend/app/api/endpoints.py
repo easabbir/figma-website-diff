@@ -482,6 +482,13 @@ async def delete_history_item(job_id: str) -> Dict:
     return {"message": f"History item {job_id} deleted successfully"}
 
 
+@router.delete("/history")
+async def delete_all_history() -> Dict:
+    """Delete all comparison history."""
+    count = history_db.delete_all()
+    return {"message": f"Deleted {count} history items"}
+
+
 # ============ Responsive Mode Endpoints ============
 
 responsive_job_results: Dict[str, ResponsiveReport] = {}

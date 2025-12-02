@@ -290,6 +290,22 @@ class ComparisonHistory:
         
         return deleted
     
+    def delete_all(self) -> int:
+        """Delete all comparisons from history."""
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Delete viewport results first (foreign key)
+        cursor.execute("DELETE FROM viewport_results")
+        # Delete all comparisons
+        cursor.execute("DELETE FROM comparisons")
+        count = cursor.rowcount
+        
+        conn.commit()
+        conn.close()
+        
+        return count
+    
     def save_viewport_result(self,
                             comparison_id: str,
                             viewport_name: str,

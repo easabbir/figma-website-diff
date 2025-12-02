@@ -41,6 +41,8 @@ export default function HistoryView({ onSelectJob, onClose }: HistoryViewProps) 
   const [filter, setFilter] = useState<string>('')
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+  const [confirmDeleteAll, setConfirmDeleteAll] = useState(false)
+  const [deletingAll, setDeletingAll] = useState(false)
 
   useEffect(() => {
     fetchHistory()
@@ -87,6 +89,21 @@ export default function HistoryView({ onSelectJob, onClose }: HistoryViewProps) 
     } finally {
       setDeletingId(null)
       setConfirmDeleteId(null)
+    }
+  }
+
+  const handleDeleteAll = async () => {
+    setDeletingAll(true)
+    try {
+      await axios.delete('/api/v1/history')
+      setHistory([])
+      setStats(null)
+      toast.success('All history deleted')
+    } catch (err) {
+      toast.error('Failed to delete history')
+    } finally {
+      setDeletingAll(false)
+      setConfirmDeleteAll(false)
     }
   }
 
@@ -159,15 +176,43 @@ export default function HistoryView({ onSelectJob, onClose }: HistoryViewProps) 
           </div>
         )}
 
-        {/* Search */}
-        <div className="p-4 border-b">
+        {/* Search & Delete All */}
+        <div className="p-4 border-b flex gap-3">
           <input
             type="text"
             placeholder="Search by website URL or project name..."
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
           />
+          {history.length > 0 && (
+            confirmDeleteAll ? (
+              <div className="flex items-center gap-2 animate-fadeIn">
+                <span className="text-sm text-red-600 font-medium">Delete all?</span>
+                <button
+                  onClick={handleDeleteAll}
+                  disabled={deletingAll}
+                  className="px-3 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
+                >
+                  {deletingAll ? 'Deleting...' : 'Yes'}
+                </button>
+                <button
+                  onClick={() => setConfirmDeleteAll(false)}
+                  className="px-3 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm font-medium rounded-lg transition-colors"
+                >
+                  No
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setConfirmDeleteAll(true)}
+                className="px-4 py-2 bg-red-100 hover:bg-red-200 text-red-700 text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
+              >
+                <Trash2 className="w-4 h-4" />
+                Delete All
+              </button>
+            )
+          )}
         </div>
 
         {/* History List */}
