@@ -1,23 +1,88 @@
-import { useState } from 'react'
-import { Mail, Lock, User, Loader2, CheckCircle, ArrowRight, Eye, EyeOff, Sparkles, Zap, Shield, BarChart3 } from 'lucide-react'
+import { useState, useRef, useEffect } from 'react'
+import { Mail, Lock, User, Loader2, CheckCircle, ArrowRight, Eye, EyeOff, Sparkles, Zap, Shield, BarChart3, KeyRound, RefreshCw, ArrowLeft } from 'lucide-react'
 import { toast } from 'react-toastify'
 import { useAuth } from '../context/AuthContext'
 
 type AuthTab = 'login' | 'signup'
+type SignupStep = 'form' | 'otp'
 
 export default function AuthPage() {
   const [activeTab, setActiveTab] = useState<AuthTab>('login')
+  const [signupStep, setSignupStep] = useState<SignupStep>('form')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [fullName, setFullName] = useState('')
+  const [otp, setOtp] = useState(['', '', '', '', '', ''])
   const [isLoading, setIsLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
-  const { login, signup } = useAuth()
+  const [otpExpiresIn, setOtpExpiresIn] = useState(0)
+  const [resendCooldown, setResendCooldown] = useState(0)
+  const otpInputRefs = useRef<(HTMLInputElement | null)[]>([])
+  const { login, requestSignupOTP, verifySignupOTP, resendOTP } = useAuth()
+
+  // Countdown timer for OTP expiry
+  useEffect(() => {
+    if (otpExpiresIn > 0) {
+      const timer = setInterval(() => {
+        setOtpExpiresIn(prev => Math.max(0, prev - 1))
+      }, 1000)
+      return () => clearInterval(timer)
+    }
+  }, [otpExpiresIn])
+
+  // Countdown timer for resend cooldown
+  useEffect(() => {
+    if (resendCooldown > 0) {
+      const timer = setInterval(() => {
+        setResendCooldown(prev => Math.max(0, prev - 1))
+      }, 1000)
+      return () => clearInterval(timer)
+    }
+  }, [resendCooldown])
 
   const resetForm = () => {
     setEmail('')
     setPassword('')
     setFullName('')
+    setOtp(['', '', '', '', '', ''])
+    setSignupStep('form')
+    setOtpExpiresIn(0)
+    setResendCooldown(0)
+  }
+
+  const handleOtpChange = (index: number, value: string) => {
+    if (value.length > 1) {
+      // Handle paste
+      const digits = value.replace(/\D/g, '').slice(0, 6).split('')
+      const newOtp = [...otp]
+      digits.forEach((digit, i) => {
+        if (index + i < 6) {
+          newOtp[index + i] = digit
+        }
+      })
+      setOtp(newOtp)
+      // Focus last filled input or next empty
+      const nextIndex = Math.min(index + digits.length, 5)
+      otpInputRefs.current[nextIndex]?.focus()
+      return
+    }
+
+    if (!/^\d*$/.test(value)) return // Only allow digits
+
+    const newOtp = [...otp]
+    newOtp[index] = value
+    setOtp(newOtp)
+
+    // Auto-focus next input
+    if (value && index < 5) {
+      otpInputRefs.current[index + 1]?.focus()
+    }
+  }
+
+  const handleOtpKeyDown = (index: number, e: React.KeyboardEvent) => {
+    if (e.key === 'Backspace' && !otp[index] && index > 0) {
+      otpInputRefs.current[index - 1]?.focus()
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -28,11 +93,15 @@ export default function AuthPage() {
       if (activeTab === 'login') {
         await login(email, password)
         toast.success('Welcome back!')
+        resetForm()
       } else {
-        await signup(email, password, fullName || undefined)
-        toast.success('Account created successfully!')
+        // Request OTP
+        const result = await requestSignupOTP(email, password, fullName || undefined)
+        setOtpExpiresIn(result.expiresInMinutes * 60)
+        setResendCooldown(30) // 30 second cooldown for resend
+        setSignupStep('otp')
+        toast.success('Verification code sent to your email!')
       }
-      resetForm()
     } catch (error: any) {
       const message = error.response?.data?.detail || 'An error occurred'
       toast.error(message)
@@ -41,9 +110,63 @@ export default function AuthPage() {
     }
   }
 
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const otpCode = otp.join('')
+    if (otpCode.length !== 6) {
+      toast.error('Please enter the complete 6-digit code')
+      return
+    }
+
+    setIsLoading(true)
+    try {
+      await verifySignupOTP(email, otpCode)
+      toast.success('Account created successfully!')
+      resetForm()
+    } catch (error: any) {
+      const message = error.response?.data?.detail || 'Invalid verification code'
+      toast.error(message)
+      // Clear OTP on error
+      setOtp(['', '', '', '', '', ''])
+      otpInputRefs.current[0]?.focus()
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleResendOtp = async () => {
+    if (resendCooldown > 0) return
+
+    setIsLoading(true)
+    try {
+      const result = await resendOTP(email)
+      setOtpExpiresIn(result.expiresInMinutes * 60)
+      setResendCooldown(30)
+      setOtp(['', '', '', '', '', ''])
+      toast.success('New verification code sent!')
+      otpInputRefs.current[0]?.focus()
+    } catch (error: any) {
+      const message = error.response?.data?.detail || 'Failed to resend code'
+      toast.error(message)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleBackToForm = () => {
+    setSignupStep('form')
+    setOtp(['', '', '', '', '', ''])
+  }
+
   const switchTab = (tab: AuthTab) => {
     setActiveTab(tab)
     resetForm()
+  }
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return `${mins}:${secs.toString().padStart(2, '0')}`
   }
 
   const features = [
@@ -150,161 +273,255 @@ export default function AuthPage() {
 
           {/* Form Card */}
           <div className="bg-white rounded-2xl shadow-xl shadow-gray-200/50 p-6 border border-gray-100">
-            {/* Header */}
-            <div className="text-center mb-5">
-              <div className="inline-flex items-center justify-center w-12 h-12 bg-gradient-to-br from-violet-500 to-purple-600 rounded-xl shadow-lg shadow-purple-500/30 mb-3">
-                {activeTab === 'login' ? (
-                  <ArrowRight className="w-5 h-5 text-white" />
-                ) : (
-                  <Sparkles className="w-5 h-5 text-white" />
-                )}
-              </div>
-              <h2 className="text-xl font-bold text-gray-900">
-                {activeTab === 'login' ? 'Welcome back!' : 'Get started'}
-              </h2>
-              <p className="text-gray-500 mt-1 text-sm">
-                {activeTab === 'login'
-                  ? 'Enter your credentials to continue'
-                  : 'Create your account in seconds'}
-              </p>
-            </div>
-
-            {/* Tabs */}
-            <div className="flex bg-gray-100/80 rounded-xl p-1 mb-5">
-              <button
-                onClick={() => switchTab('login')}
-                className={`flex-1 py-2.5 text-sm font-semibold rounded-lg transition-all duration-300 ${
-                  activeTab === 'login'
-                    ? 'bg-white text-gray-900 shadow-sm'
-                    : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                Sign In
-              </button>
-              <button
-                onClick={() => switchTab('signup')}
-                className={`flex-1 py-2.5 text-sm font-semibold rounded-lg transition-all duration-300 ${
-                  activeTab === 'signup'
-                    ? 'bg-white text-gray-900 shadow-sm'
-                    : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                Sign Up
-              </button>
-            </div>
-
-            {/* Form */}
-            <form onSubmit={handleSubmit} className="space-y-3">
-              {activeTab === 'signup' && (
-                <div className="space-y-1">
-                  <label className="block text-sm font-medium text-gray-700">
-                    Full Name
-                  </label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <input
-                      type="text"
-                      value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
-                      placeholder="John Doe"
-                      className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:bg-white focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-all text-gray-900 placeholder:text-gray-400 text-sm"
-                    />
+            {/* OTP Verification Step */}
+            {activeTab === 'signup' && signupStep === 'otp' ? (
+              <>
+                {/* OTP Header */}
+                <div className="text-center mb-6">
+                  <div className="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-br from-violet-500 to-purple-600 rounded-2xl shadow-lg shadow-purple-500/30 mb-4">
+                    <KeyRound className="w-6 h-6 text-white" />
                   </div>
-                </div>
-              )}
-
-              <div className="space-y-1">
-                <label className="block text-sm font-medium text-gray-700">
-                  Email Address
-                </label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@example.com"
-                    required
-                    className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:bg-white focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-all text-gray-900 placeholder:text-gray-400 text-sm"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <label className="block text-sm font-medium text-gray-700">
-                  Password
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    required
-                    minLength={6}
-                    className="w-full pl-10 pr-10 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:bg-white focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-all text-gray-900 placeholder:text-gray-400 text-sm"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-                  >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-                {activeTab === 'signup' && (
-                  <p className="text-xs text-gray-400 flex items-center gap-1">
-                    <CheckCircle className="w-3 h-3" /> Minimum 6 characters
+                  <h2 className="text-xl font-bold text-gray-900">Verify your email</h2>
+                  <p className="text-gray-500 mt-2 text-sm">
+                    We've sent a 6-digit code to
                   </p>
-                )}
-              </div>
+                  <p className="text-violet-600 font-medium text-sm">{email}</p>
+                </div>
 
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="w-full py-3 bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white font-semibold rounded-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 group shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 mt-4"
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span className="text-sm">{activeTab === 'login' ? 'Signing in...' : 'Creating account...'}</span>
-                  </>
-                ) : (
-                  <>
-                    <span className="text-sm">{activeTab === 'login' ? 'Sign In' : 'Create Account'}</span>
-                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                  </>
-                )}
-              </button>
-            </form>
+                {/* OTP Form */}
+                <form onSubmit={handleVerifyOtp} className="space-y-5">
+                  {/* OTP Input */}
+                  <div>
+                    <div className="flex justify-center gap-2">
+                      {otp.map((digit, index) => (
+                        <input
+                          key={index}
+                          ref={(el) => (otpInputRefs.current[index] = el)}
+                          type="text"
+                          inputMode="numeric"
+                          maxLength={6}
+                          value={digit}
+                          onChange={(e) => handleOtpChange(index, e.target.value)}
+                          onKeyDown={(e) => handleOtpKeyDown(index, e)}
+                          className="w-11 h-12 text-center text-lg font-bold bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:bg-white focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 transition-all text-gray-900"
+                          autoFocus={index === 0}
+                        />
+                      ))}
+                    </div>
+                    
+                    {/* Timer */}
+                    {otpExpiresIn > 0 && (
+                      <p className="text-center text-xs text-gray-500 mt-3">
+                        Code expires in <span className="font-medium text-violet-600">{formatTime(otpExpiresIn)}</span>
+                      </p>
+                    )}
+                    {otpExpiresIn === 0 && signupStep === 'otp' && (
+                      <p className="text-center text-xs text-red-500 mt-3">
+                        Code expired. Please request a new one.
+                      </p>
+                    )}
+                  </div>
 
-            {/* Footer */}
-            <p className="text-center text-sm text-gray-500 mt-4">
-              {activeTab === 'login' ? (
-                <>
-                  New here?{' '}
+                  {/* Verify Button */}
                   <button
-                    type="button"
-                    onClick={() => switchTab('signup')}
-                    className="text-violet-600 hover:text-violet-700 font-semibold"
+                    type="submit"
+                    disabled={isLoading || otp.join('').length !== 6}
+                    className="w-full py-3 bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white font-semibold rounded-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40"
                   >
-                    Create an account
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span className="text-sm">Verifying...</span>
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle className="w-4 h-4" />
+                        <span className="text-sm">Verify & Create Account</span>
+                      </>
+                    )}
                   </button>
-                </>
-              ) : (
-                <>
-                  Already have an account?{' '}
+
+                  {/* Resend & Back */}
+                  <div className="flex items-center justify-between pt-2">
+                    <button
+                      type="button"
+                      onClick={handleBackToForm}
+                      className="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1 transition-colors"
+                    >
+                      <ArrowLeft className="w-3.5 h-3.5" />
+                      Back
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleResendOtp}
+                      disabled={resendCooldown > 0 || isLoading}
+                      className="text-sm text-violet-600 hover:text-violet-700 font-medium flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+                      {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend code'}
+                    </button>
+                  </div>
+                </form>
+              </>
+            ) : (
+              <>
+                {/* Header */}
+                <div className="text-center mb-5">
+                  <div className="inline-flex items-center justify-center w-12 h-12 bg-gradient-to-br from-violet-500 to-purple-600 rounded-xl shadow-lg shadow-purple-500/30 mb-3">
+                    {activeTab === 'login' ? (
+                      <ArrowRight className="w-5 h-5 text-white" />
+                    ) : (
+                      <Sparkles className="w-5 h-5 text-white" />
+                    )}
+                  </div>
+                  <h2 className="text-xl font-bold text-gray-900">
+                    {activeTab === 'login' ? 'Welcome back!' : 'Get started'}
+                  </h2>
+                  <p className="text-gray-500 mt-1 text-sm">
+                    {activeTab === 'login'
+                      ? 'Enter your credentials to continue'
+                      : 'Create your account in seconds'}
+                  </p>
+                </div>
+
+                {/* Tabs */}
+                <div className="flex bg-gray-100/80 rounded-xl p-1 mb-5">
                   <button
-                    type="button"
                     onClick={() => switchTab('login')}
-                    className="text-violet-600 hover:text-violet-700 font-semibold"
+                    className={`flex-1 py-2.5 text-sm font-semibold rounded-lg transition-all duration-300 ${
+                      activeTab === 'login'
+                        ? 'bg-white text-gray-900 shadow-sm'
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
                   >
-                    Sign in
+                    Sign In
                   </button>
-                </>
-              )}
-            </p>
+                  <button
+                    onClick={() => switchTab('signup')}
+                    className={`flex-1 py-2.5 text-sm font-semibold rounded-lg transition-all duration-300 ${
+                      activeTab === 'signup'
+                        ? 'bg-white text-gray-900 shadow-sm'
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    Sign Up
+                  </button>
+                </div>
+
+                {/* Form */}
+                <form onSubmit={handleSubmit} className="space-y-3">
+                  {activeTab === 'signup' && (
+                    <div className="space-y-1">
+                      <label className="block text-sm font-medium text-gray-700">
+                        Full Name
+                      </label>
+                      <div className="relative">
+                        <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <input
+                          type="text"
+                          value={fullName}
+                          onChange={(e) => setFullName(e.target.value)}
+                          placeholder="John Doe"
+                          className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:bg-white focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-all text-gray-900 placeholder:text-gray-400 text-sm"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="space-y-1">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Email Address
+                    </label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <input
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="you@example.com"
+                        required
+                        className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:bg-white focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-all text-gray-900 placeholder:text-gray-400 text-sm"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Password
+                    </label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="••••••••"
+                        required
+                        minLength={6}
+                        className="w-full pl-10 pr-10 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:bg-white focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-all text-gray-900 placeholder:text-gray-400 text-sm"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                      >
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                    {activeTab === 'signup' && (
+                      <p className="text-xs text-gray-400 flex items-center gap-1">
+                        <CheckCircle className="w-3 h-3" /> Minimum 6 characters
+                      </p>
+                    )}
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isLoading}
+                    className="w-full py-3 bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white font-semibold rounded-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 group shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 mt-4"
+                  >
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span className="text-sm">{activeTab === 'login' ? 'Signing in...' : 'Sending code...'}</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="text-sm">{activeTab === 'login' ? 'Sign In' : 'Continue'}</span>
+                        <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                      </>
+                    )}
+                  </button>
+                </form>
+
+                {/* Footer */}
+                <p className="text-center text-sm text-gray-500 mt-4">
+                  {activeTab === 'login' ? (
+                    <>
+                      New here?{' '}
+                      <button
+                        type="button"
+                        onClick={() => switchTab('signup')}
+                        className="text-violet-600 hover:text-violet-700 font-semibold"
+                      >
+                        Create an account
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      Already have an account?{' '}
+                      <button
+                        type="button"
+                        onClick={() => switchTab('login')}
+                        className="text-violet-600 hover:text-violet-700 font-semibold"
+                      >
+                        Sign in
+                      </button>
+                    </>
+                  )}
+                </p>
+              </>
+            )}
           </div>
 
           {/* Trust Badge */}

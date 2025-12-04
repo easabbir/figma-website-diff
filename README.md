@@ -2,14 +2,20 @@
 
 A powerful Python + FastAPI tool that compares Figma designs with live websites to detect visual and UI inconsistencies. Features a modern React frontend with real-time progress updates, user authentication, and elegant UI design.
 
-![Version](https://img.shields.io/badge/version-1.2.0-blue.svg)
+![Version](https://img.shields.io/badge/version-1.3.0-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.13-blue.svg)
 ![React](https://img.shields.io/badge/react-18.2-blue.svg)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.115-green.svg)
 
-## 🆕 Recent Updates (v1.2.0)
+## 🆕 Recent Updates (v1.3.0)
 
 ### New Features
+- ✅ **Email OTP Verification** - Secure signup with 6-digit email verification code
+- ✅ **Beautiful OTP UI** - Modern OTP input with auto-focus, paste support, and countdown timer
+- ✅ **Resend OTP** - Ability to resend verification code with cooldown
+- ✅ **Professional Email Templates** - Beautiful HTML email templates for OTP delivery
+
+### Previous Updates (v1.2.0)
 - ✅ **User Authentication** - Secure login/signup with JWT tokens
 - ✅ **User-Specific History** - Each user can only view their own comparison history
 - ✅ **Figma OAuth Integration** - Connect with Figma OAuth for seamless authentication
@@ -287,7 +293,32 @@ PIXEL_DIFF_THRESHOLD=0.95
 PLAYWRIGHT_TIMEOUT=30000
 DEFAULT_VIEWPORT_WIDTH=1920
 DEFAULT_VIEWPORT_HEIGHT=1080
+
+# Email Configuration (for OTP verification)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@gmail.com
+SMTP_PASSWORD=your-app-password
+SENDER_EMAIL=your-email@gmail.com
+SENDER_NAME=UI Diff Checker
 ```
+
+### Email Setup for OTP Verification
+
+The signup process requires email verification via OTP. To enable email sending:
+
+1. **For Gmail:**
+   - Enable 2-Factor Authentication on your Google account
+   - Generate an App Password: Google Account → Security → App Passwords
+   - Use the 16-character app password as `SMTP_PASSWORD`
+
+2. **For other providers:**
+   - Update `SMTP_HOST` and `SMTP_PORT` accordingly
+   - Use your email credentials
+
+3. **Development mode:**
+   - If SMTP credentials are not configured, OTP codes are logged to the console
+   - Check backend logs for the OTP code during development
 
 ### Tolerance Guidelines
 

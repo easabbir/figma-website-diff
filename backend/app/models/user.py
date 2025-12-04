@@ -42,3 +42,29 @@ class TokenData(BaseModel):
     """Data encoded in JWT token."""
     user_id: Optional[str] = None
     email: Optional[str] = None
+
+
+# OTP Verification Schemas
+class OTPRequest(BaseModel):
+    """Schema for requesting OTP (signup step 1)."""
+    email: EmailStr
+    password: str = Field(..., min_length=6)
+    full_name: Optional[str] = None
+
+
+class OTPVerify(BaseModel):
+    """Schema for verifying OTP (signup step 2)."""
+    email: EmailStr
+    otp: str = Field(..., min_length=6, max_length=6)
+
+
+class OTPResend(BaseModel):
+    """Schema for resending OTP."""
+    email: EmailStr
+
+
+class OTPResponse(BaseModel):
+    """Response for OTP operations."""
+    success: bool
+    message: str
+    expires_in_minutes: Optional[int] = None

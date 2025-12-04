@@ -13,7 +13,9 @@ interface AuthContextType {
   token: string | null
   isLoading: boolean
   login: (email: string, password: string) => Promise<void>
-  signup: (email: string, password: string, fullName?: string) => Promise<void>
+  requestSignupOTP: (email: string, password: string, fullName?: string) => Promise<{ expiresInMinutes: number }>
+  verifySignupOTP: (email: string, otp: string) => Promise<void>
+  resendOTP: (email: string) => Promise<{ expiresInMinutes: number }>
   logout: () => void
   isAuthenticated: boolean
 }
@@ -72,16 +74,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await fetchUser(access_token)
   }
 
-  const signup = async (email: string, password: string, fullName?: string) => {
-    // Register user
-    await axios.post('/api/v1/auth/signup', {
+  const requestSignupOTP = async (email: string, password: string, fullName?: string): Promise<{ expiresInMinutes: number }> => {
+    const response = await axios.post('/api/v1/auth/signup/request-otp', {
       email,
       password,
       full_name: fullName
     })
+    return { expiresInMinutes: response.data.expires_in_minutes || 10 }
+  }
+
+  const verifySignupOTP = async (email: string, otp: string): Promise<void> => {
+    const response = await axios.post('/api/v1/auth/signup/verify-otp', {
+      email,
+      otp
+    })
+    const { access_token } = response.data
     
-    // Auto-login after signup
-    await login(email, password)
+    // Store token
+    localStorage.setItem(TOKEN_KEY, access_token)
+    setToken(access_token)
+    
+    // Set default auth header
+    axios.defaults.headers.common['Authorization'] = `Bearer ${access_token}`
+    
+    // Fetch user info
+    await fetchUser(access_token)
+  }
+
+  const resendOTP = async (email: string): Promise<{ expiresInMinutes: number }> => {
+    const response = await axios.post('/api/v1/auth/signup/resend-otp', { email })
+    return { expiresInMinutes: response.data.expires_in_minutes || 10 }
   }
 
   const logout = () => {
@@ -98,7 +120,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         token,
         isLoading,
         login,
-        signup,
+        requestSignupOTP,
+        verifySignupOTP,
+        resendOTP,
         logout,
         isAuthenticated: !!user
       }}
