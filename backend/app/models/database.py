@@ -84,10 +84,17 @@ def init_database():
             password_hash TEXT NOT NULL,
             full_name TEXT,
             is_active INTEGER DEFAULT 1,
+            comparison_count INTEGER DEFAULT 0,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP
         )
     """)
+    
+    # Add comparison_count column if it doesn't exist (migration for existing databases)
+    try:
+        cursor.execute("ALTER TABLE users ADD COLUMN comparison_count INTEGER DEFAULT 0")
+    except:
+        pass  # Column already exists
     
     # Create index for faster queries
     cursor.execute("""
@@ -490,6 +497,46 @@ class UserDB:
         conn.close()
         
         return updated
+    
+    def increment_comparison_count(self, user_id: str) -> int:
+        """
+        Increment the comparison count for a user.
+        
+        Args:
+            user_id: The user's ID
+            
+        Returns:
+            The new comparison count
+        """
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            UPDATE users 
+            SET comparison_count = comparison_count + 1,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        """, (user_id,))
+        
+        conn.commit()
+        
+        # Get the new count
+        cursor.execute("SELECT comparison_count FROM users WHERE id = ?", (user_id,))
+        row = cursor.fetchone()
+        conn.close()
+        
+        return row['comparison_count'] if row else 0
+    
+    def get_comparison_count(self, user_id: str) -> int:
+        """Get the comparison count for a user."""
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("SELECT comparison_count FROM users WHERE id = ?", (user_id,))
+        row = cursor.fetchone()
+        conn.close()
+        
+        return row['comparison_count'] if row else 0
 
 
 # Global instances

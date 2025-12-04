@@ -126,6 +126,7 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
         email=user["email"],
         full_name=user.get("full_name"),
         is_active=bool(user.get("is_active", True)),
+        comparison_count=user.get("comparison_count", 0),
         created_at=user.get("created_at")
     )
 
@@ -156,5 +157,6 @@ def get_current_user_required(credentials: HTTPAuthorizationCredentials = Depend
         email=user["email"],
         full_name=user.get("full_name"),
         is_active=bool(user.get("is_active", True)),
+        comparison_count=user.get("comparison_count", 0),
         created_at=user.get("created_at")
     )

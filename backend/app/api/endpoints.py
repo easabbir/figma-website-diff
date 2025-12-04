@@ -31,7 +31,7 @@ from ..services.report_generator import ReportGenerator
 from ..services.pdf_generator import PDFReportGenerator
 from ..services.figma_oauth import figma_oauth
 from ..services.auth import get_current_user
-from ..models.database import history_db
+from ..models.database import history_db, user_db
 from ..config import get_settings
 
 logger = logging.getLogger(__name__)
@@ -159,6 +159,11 @@ async def process_comparison_job(
             info_count=report.summary.info,
             status="completed"
         )
+        
+        # Increment user's comparison count
+        if user_id:
+            new_count = user_db.increment_comparison_count(user_id)
+            logger.info(f"User {user_id} comparison count: {new_count}")
         
         # Complete
         job_progress[job_id].progress = 100
