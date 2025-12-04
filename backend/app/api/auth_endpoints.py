@@ -11,14 +11,18 @@ from ..models.user import (
     OTPRequest,
     OTPVerify,
     OTPResend,
-    OTPResponse
+    OTPResponse,
+    PasswordChange,
+    ProfileUpdate
 )
 from ..services.auth import (
     register_user,
     authenticate_user,
     create_access_token,
     get_current_user_required,
-    ACCESS_TOKEN_EXPIRE_MINUTES
+    ACCESS_TOKEN_EXPIRE_MINUTES,
+    verify_password,
+    get_password_hash
 )
 from ..services.email_service import (
     send_verification_otp,
@@ -192,3 +196,81 @@ async def get_current_user_info(current_user: UserResponse = Depends(get_current
         Current user data
     """
     return current_user
+
+
+@router.put("/profile", response_model=UserResponse)
+async def update_profile(
+    profile_data: ProfileUpdate,
+    current_user: UserResponse = Depends(get_current_user_required)
+):
+    """
+    Update user profile (name, profile image).
+    
+    Args:
+        profile_data: Profile update data
+        current_user: Current authenticated user
+        
+    Returns:
+        Updated user data
+    """
+    update_fields = {}
+    
+    if profile_data.full_name is not None:
+        update_fields['full_name'] = profile_data.full_name
+    
+    if profile_data.profile_image is not None:
+        update_fields['profile_image'] = profile_data.profile_image
+    
+    if update_fields:
+        user_db.update_user(current_user.id, **update_fields)
+    
+    # Fetch updated user
+    updated_user = user_db.get_user_by_id(current_user.id)
+    
+    return UserResponse(
+        id=updated_user["id"],
+        email=updated_user["email"],
+        full_name=updated_user.get("full_name"),
+        is_active=bool(updated_user.get("is_active", True)),
+        comparison_count=updated_user.get("comparison_count", 0),
+        profile_image=updated_user.get("profile_image"),
+        created_at=updated_user.get("created_at")
+    )
+
+
+@router.put("/change-password")
+async def change_password(
+    password_data: PasswordChange,
+    current_user: UserResponse = Depends(get_current_user_required)
+):
+    """
+    Change user password.
+    
+    Args:
+        password_data: Current and new password
+        current_user: Current authenticated user
+        
+    Returns:
+        Success message
+    """
+    # Get user with password hash
+    user = user_db.get_user_by_id(current_user.id)
+    
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    
+    # Verify current password
+    if not verify_password(password_data.current_password, user["password_hash"]):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Current password is incorrect"
+        )
+    
+    # Hash new password and update
+    new_password_hash = get_password_hash(password_data.new_password)
+    user_db.update_password(current_user.id, new_password_hash)
+    
+    return {"message": "Password changed successfully"}

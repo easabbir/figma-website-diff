@@ -6,6 +6,9 @@ interface User {
   email: string
   full_name?: string
   is_active: boolean
+  comparison_count: number
+  profile_image?: string
+  created_at?: string
 }
 
 interface AuthContextType {
@@ -17,6 +20,9 @@ interface AuthContextType {
   verifySignupOTP: (email: string, otp: string) => Promise<void>
   resendOTP: (email: string) => Promise<{ expiresInMinutes: number }>
   logout: () => void
+  updateProfile: (fullName?: string, profileImage?: string) => Promise<void>
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>
+  refreshUser: () => Promise<void>
   isAuthenticated: boolean
 }
 
@@ -113,6 +119,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     delete axios.defaults.headers.common['Authorization']
   }
 
+  const updateProfile = async (fullName?: string, profileImage?: string) => {
+    const response = await axios.put('/api/v1/auth/profile', {
+      full_name: fullName,
+      profile_image: profileImage
+    })
+    setUser(response.data)
+  }
+
+  const changePassword = async (currentPassword: string, newPassword: string) => {
+    await axios.put('/api/v1/auth/change-password', {
+      current_password: currentPassword,
+      new_password: newPassword
+    })
+  }
+
+  const refreshUser = async () => {
+    if (token) {
+      await fetchUser(token)
+    }
+  }
+
   return (
     <AuthContext.Provider
       value={{
@@ -124,6 +151,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         verifySignupOTP,
         resendOTP,
         logout,
+        updateProfile,
+        changePassword,
+        refreshUser,
         isAuthenticated: !!user
       }}
     >

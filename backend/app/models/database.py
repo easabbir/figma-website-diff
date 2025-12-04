@@ -85,6 +85,7 @@ def init_database():
             full_name TEXT,
             is_active INTEGER DEFAULT 1,
             comparison_count INTEGER DEFAULT 0,
+            profile_image TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP
         )
@@ -93,6 +94,12 @@ def init_database():
     # Add comparison_count column if it doesn't exist (migration for existing databases)
     try:
         cursor.execute("ALTER TABLE users ADD COLUMN comparison_count INTEGER DEFAULT 0")
+    except:
+        pass  # Column already exists
+    
+    # Add profile_image column if it doesn't exist (migration for existing databases)
+    try:
+        cursor.execute("ALTER TABLE users ADD COLUMN profile_image TEXT")
     except:
         pass  # Column already exists
     
@@ -478,7 +485,7 @@ class UserDB:
         fields = []
         values = []
         for key, value in kwargs.items():
-            if key in ['full_name', 'is_active']:
+            if key in ['full_name', 'is_active', 'profile_image']:
                 fields.append(f"{key} = ?")
                 values.append(value)
         
@@ -491,6 +498,23 @@ class UserDB:
         cursor.execute(f"""
             UPDATE users SET {', '.join(fields)} WHERE id = ?
         """, values)
+        
+        conn.commit()
+        updated = cursor.rowcount > 0
+        conn.close()
+        
+        return updated
+    
+    def update_password(self, user_id: str, new_password_hash: str) -> bool:
+        """Update user's password."""
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            UPDATE users 
+            SET password_hash = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        """, (new_password_hash, user_id))
         
         conn.commit()
         updated = cursor.rowcount > 0

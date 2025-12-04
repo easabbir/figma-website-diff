@@ -27,6 +27,7 @@ class UserResponse(UserBase):
     id: str
     is_active: bool = True
     comparison_count: int = 0
+    profile_image: Optional[str] = None
     created_at: Optional[datetime] = None
 
     class Config:
@@ -37,6 +38,18 @@ class Token(BaseModel):
     """JWT token response."""
     access_token: str
     token_type: str = "bearer"
+
+
+class PasswordChange(BaseModel):
+    """Schema for password change."""
+    current_password: str
+    new_password: str = Field(..., min_length=6)
+
+
+class ProfileUpdate(BaseModel):
+    """Schema for profile update."""
+    full_name: Optional[str] = None
+    profile_image: Optional[str] = None  # Base64 encoded image or URL
 
 
 class TokenData(BaseModel):

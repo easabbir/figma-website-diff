@@ -127,6 +127,7 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
         full_name=user.get("full_name"),
         is_active=bool(user.get("is_active", True)),
         comparison_count=user.get("comparison_count", 0),
+        profile_image=user.get("profile_image"),
         created_at=user.get("created_at")
     )
 
@@ -158,5 +159,6 @@ def get_current_user_required(credentials: HTTPAuthorizationCredentials = Depend
         full_name=user.get("full_name"),
         is_active=bool(user.get("is_active", True)),
         comparison_count=user.get("comparison_count", 0),
+        profile_image=user.get("profile_image"),
         created_at=user.get("created_at")
     )
