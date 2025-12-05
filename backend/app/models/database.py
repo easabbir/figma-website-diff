@@ -57,6 +57,12 @@ def init_database():
     except:
         pass  # Column already exists
     
+    # Add comparison_number column if it doesn't exist (migration for existing databases)
+    try:
+        cursor.execute("ALTER TABLE comparisons ADD COLUMN comparison_number INTEGER")
+    except:
+        pass  # Column already exists
+    
     # Create viewport_results table for responsive mode
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS viewport_results (
@@ -151,12 +157,26 @@ class ComparisonHistory:
         
         comparison_id = job_id
         
+        # Get the next comparison number for this user
+        if user_id:
+            cursor.execute("""
+                SELECT COALESCE(MAX(comparison_number), 0) + 1 as next_number 
+                FROM comparisons WHERE user_id = ?
+            """, (user_id,))
+        else:
+            cursor.execute("""
+                SELECT COALESCE(MAX(comparison_number), 0) + 1 as next_number 
+                FROM comparisons WHERE user_id IS NULL
+            """)
+        row = cursor.fetchone()
+        comparison_number = row['next_number'] if row else 1
+        
         cursor.execute("""
             INSERT INTO comparisons (
                 id, job_id, user_id, figma_url, website_url, 
                 viewport_width, viewport_height, viewport_name,
-                project_name, tags, status
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                project_name, tags, status, comparison_number
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             comparison_id,
             job_id,
@@ -168,13 +188,14 @@ class ComparisonHistory:
             viewport_name,
             project_name,
             json.dumps(tags) if tags else None,
-            "processing"
+            "processing",
+            comparison_number
         ))
         
         conn.commit()
         conn.close()
         
-        logger.info(f"Saved comparison {comparison_id} to history for user {user_id}")
+        logger.info(f"Saved comparison {comparison_id} (#{comparison_number}) to history for user {user_id}")
         return comparison_id
     
     def update_comparison_result(self,

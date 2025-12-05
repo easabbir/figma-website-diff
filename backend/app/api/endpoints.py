@@ -146,7 +146,10 @@ async def process_comparison_job(
         # Generate HTML report
         if options.get("generate_html_report", True):
             html_report_path = output_dir / "report.html"
-            report_generator.generate_html_report(report, html_report_path)
+            # Get comparison number from database
+            comparison_data = history_db.get_comparison(job_id)
+            comparison_number = comparison_data.get('comparison_number') if comparison_data else None
+            report_generator.generate_html_report(report, html_report_path, comparison_number=comparison_number)
             report.report_html_url = f"/static/{job_id}/report.html"
         
         # Update history with results
@@ -389,6 +392,10 @@ async def download_pdf_report(job_id: str) -> FileResponse:
     output_dir = Path(settings.OUTPUT_DIR) / job_id
     pdf_path = output_dir / "report.pdf"
     
+    # Get comparison number from database
+    comparison_data = history_db.get_comparison(job_id)
+    comparison_number = comparison_data.get('comparison_number') if comparison_data else None
+    
     if not pdf_path.exists():
         # Generate PDF on demand
         pdf_generator = PDFReportGenerator()
@@ -406,12 +413,16 @@ async def download_pdf_report(job_id: str) -> FileResponse:
             report,
             pdf_path,
             figma_screenshot_path=figma_screenshot,
-            website_screenshot_path=website_screenshot
+            website_screenshot_path=website_screenshot,
+            comparison_number=comparison_number
         )
+    
+    # Generate filename with comparison number
+    filename = f"ui-comparison-{comparison_number}.pdf" if comparison_number else f"ui-comparison-{job_id[:8]}.pdf"
     
     return FileResponse(
         path=str(pdf_path),
-        filename=f"ui-comparison-{job_id[:8]}.pdf",
+        filename=filename,
         media_type="application/pdf"
     )
 

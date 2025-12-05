@@ -486,12 +486,6 @@ export default function ProfilePage({ onClose }: ProfilePageProps) {
             )}
           </div>
 
-          {/* Account Info */}
-          <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
-            <p className="text-xs text-gray-500 text-center">
-              Account ID: <span className="font-mono text-gray-600">{user?.id?.slice(0, 8)}...</span>
-            </p>
-          </div>
         </div>
       </div>
     </div>

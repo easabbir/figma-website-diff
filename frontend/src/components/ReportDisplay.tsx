@@ -7,6 +7,7 @@ import {
   ReactCompareSliderImage
 } from 'react-compare-slider'
 import DiffViewer from './DiffViewer'
+import { useAuth } from '../context/AuthContext'
 
 interface ReportDisplayProps {
   jobId: string
@@ -33,6 +34,7 @@ interface DiffReport {
 }
 
 export default function ReportDisplay({ jobId, onBack, fromHistory = false }: ReportDisplayProps) {
+  const { refreshUser } = useAuth()
   const [report, setReport] = useState<DiffReport | null>(null)
   const [progress, setProgress] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -91,7 +93,9 @@ export default function ReportDisplay({ jobId, onBack, fromHistory = false }: Re
         } else if (!isHistorical && !toastShown) {
           // Only show toast for new comparisons, not historical ones, and only once
           setToastShown(true)
-          toast.success('✅ Comparison completed successfully!')
+          toast.success('Comparison completed successfully!')
+          // Refresh user data to update comparison count
+          refreshUser()
         }
       } catch (err: any) {
         if (err.response?.status === 202) {
@@ -418,6 +422,7 @@ export default function ReportDisplay({ jobId, onBack, fromHistory = false }: Re
                       src={report.figma_screenshot_url}
                       alt="Figma Design"
                       onError={() => setFigmaImageError(true)}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top left' }}
                     />
                   }
                   itemTwo={
@@ -425,6 +430,7 @@ export default function ReportDisplay({ jobId, onBack, fromHistory = false }: Re
                       src={report.website_screenshot_url}
                       alt="Website"
                       onError={() => setWebsiteImageError(true)}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top left' }}
                     />
                   }
                   style={{

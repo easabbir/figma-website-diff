@@ -27,7 +27,7 @@ HTML_TEMPLATE = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>UI Comparison Report - {{ report.job_id }}</title>
+    <title>UI Comparison Report - #{{ comparison_number }}</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -187,7 +187,7 @@ HTML_TEMPLATE = """
     <div class="container">
         <div class="header">
             <h1>🎨 UI Comparison Report</h1>
-            <p>Job ID: {{ report.job_id }} | Generated: {{ local_time }}</p>
+            <p>Comparison #{{ comparison_number }} | Generated: {{ local_time }}</p>
         </div>
         
         <div class="match-score">
@@ -305,13 +305,14 @@ class ReportGenerator:
         logger.info(f"JSON report saved: {output_path}")
         return str(output_path)
     
-    def generate_html_report(self, report: DiffReport, output_path: Path) -> str:
+    def generate_html_report(self, report: DiffReport, output_path: Path, comparison_number: int = None) -> str:
         """
         Generate HTML report.
         
         Args:
             report: Difference report
             output_path: Path to save HTML report
+            comparison_number: Sequential comparison number for display
             
         Returns:
             Path to saved report
@@ -321,7 +322,11 @@ class ReportGenerator:
         
         # Render template with local time
         local_time = format_local_datetime(report.created_at)
-        html_content = self.html_template.render(report=report, local_time=local_time)
+        html_content = self.html_template.render(
+            report=report, 
+            local_time=local_time,
+            comparison_number=comparison_number or 'N/A'
+        )
         
         with open(output_path, 'w', encoding='utf-8') as f:
             f.write(html_content)
@@ -344,7 +349,7 @@ class ReportGenerator:
         text = f"""
 UI Comparison Report
 ===================
-Job ID: {report.job_id}
+Comparison #: {getattr(report, 'comparison_number', 'N/A')}
 Status: {report.status}
 Generated: {report.created_at}
 

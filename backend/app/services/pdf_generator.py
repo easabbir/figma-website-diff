@@ -99,7 +99,8 @@ class PDFReportGenerator:
     
     def generate_pdf_report(self, report: DiffReport, output_path: Path,
                            figma_screenshot_path: Optional[str] = None,
-                           website_screenshot_path: Optional[str] = None) -> str:
+                           website_screenshot_path: Optional[str] = None,
+                           comparison_number: int = None) -> str:
         """
         Generate a PDF report from comparison results.
         
@@ -108,6 +109,7 @@ class PDFReportGenerator:
             output_path: Path to save the PDF
             figma_screenshot_path: Path to Figma screenshot
             website_screenshot_path: Path to website screenshot
+            comparison_number: Sequential comparison number for display
             
         Returns:
             Path to generated PDF
@@ -133,7 +135,8 @@ class PDFReportGenerator:
             f"Generated on {local_time.strftime('%B %d, %Y at %I:%M %p')}",
             self.styles['ReportSubtitle']
         ))
-        story.append(Paragraph(f"Job ID: {report.job_id}", self.styles['ReportSubtitle']))
+        comparison_label = f"Comparison #{comparison_number}" if comparison_number else f"Job ID: {report.job_id[:8]}"
+        story.append(Paragraph(comparison_label, self.styles['ReportSubtitle']))
         
         story.append(Spacer(1, 20))
         story.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor('#e5e7eb')))

@@ -41,9 +41,11 @@ class WebsiteAnalyzer:
     async def capture_screenshot(self, url: str, output_path: str, 
                                  viewport: Optional[Dict] = None,
                                  wait_for_selector: Optional[str] = None,
-                                 full_page: bool = True) -> str:
+                                 full_page: bool = True,
+                                 scroll_to_load: bool = True,
+                                 wait_for_animations: bool = True) -> str:
         """
-        Capture screenshot of a webpage.
+        Capture screenshot of a webpage with full content loading.
         
         Args:
             url: Website URL
@@ -51,6 +53,8 @@ class WebsiteAnalyzer:
             viewport: Viewport dimensions {width, height}
             wait_for_selector: CSS selector to wait for before screenshot
             full_page: Capture full page or just viewport
+            scroll_to_load: Scroll through page to trigger lazy loading
+            wait_for_animations: Wait for CSS animations/transitions to complete
             
         Returns:
             Path to saved screenshot
@@ -60,15 +64,29 @@ class WebsiteAnalyzer:
         )
         
         try:
-            # Navigate to URL
+            # Navigate to URL and wait for initial load
             await page.goto(url, wait_until="networkidle", timeout=self.timeout)
             
             # Wait for specific selector if provided
             if wait_for_selector:
                 await page.wait_for_selector(wait_for_selector, timeout=self.timeout)
             
-            # Additional wait for any animations
-            await page.wait_for_timeout(1000)
+            # Wait for DOM content to be fully painted
+            await self._wait_for_dom_stable(page)
+            
+            # Scroll through the page to trigger lazy loading
+            if scroll_to_load and full_page:
+                await self._scroll_to_load_content(page)
+            
+            # Wait for all images to load
+            await self._wait_for_images(page)
+            
+            # Wait for animations/transitions to complete
+            if wait_for_animations:
+                await self._wait_for_animations(page)
+            
+            # Final wait for any remaining renders
+            await page.wait_for_timeout(500)
             
             # Take screenshot
             await page.screenshot(path=output_path, full_page=full_page)
@@ -78,6 +96,186 @@ class WebsiteAnalyzer:
             
         finally:
             await page.close()
+    
+    async def _wait_for_dom_stable(self, page: Page, timeout_ms: int = 5000):
+        """
+        Wait for DOM to stabilize (no more mutations).
+        """
+        try:
+            await page.evaluate("""
+                () => {
+                    return new Promise((resolve) => {
+                        let timeout;
+                        let lastMutationTime = Date.now();
+                        
+                        const observer = new MutationObserver(() => {
+                            lastMutationTime = Date.now();
+                        });
+                        
+                        observer.observe(document.body, {
+                            childList: true,
+                            subtree: true,
+                            attributes: true
+                        });
+                        
+                        // Check every 100ms if DOM has been stable for 300ms
+                        const checkStable = () => {
+                            if (Date.now() - lastMutationTime > 300) {
+                                observer.disconnect();
+                                resolve();
+                            } else {
+                                timeout = setTimeout(checkStable, 100);
+                            }
+                        };
+                        
+                        // Start checking after initial delay
+                        setTimeout(checkStable, 200);
+                        
+                        // Timeout after 5 seconds
+                        setTimeout(() => {
+                            observer.disconnect();
+                            clearTimeout(timeout);
+                            resolve();
+                        }, 5000);
+                    });
+                }
+            """)
+        except Exception as e:
+            logger.warning(f"DOM stability check failed: {e}")
+            await page.wait_for_timeout(1000)
+    
+    async def _scroll_to_load_content(self, page: Page):
+        """
+        Scroll through the entire page to trigger lazy loading.
+        """
+        try:
+            await page.evaluate("""
+                async () => {
+                    const scrollHeight = document.body.scrollHeight;
+                    const viewportHeight = window.innerHeight;
+                    const scrollStep = viewportHeight * 0.8;
+                    let currentPosition = 0;
+                    
+                    // Scroll down through the page
+                    while (currentPosition < scrollHeight) {
+                        window.scrollTo(0, currentPosition);
+                        await new Promise(r => setTimeout(r, 150));
+                        currentPosition += scrollStep;
+                        
+                        // Check if page height increased (infinite scroll)
+                        const newScrollHeight = document.body.scrollHeight;
+                        if (newScrollHeight > scrollHeight + viewportHeight) {
+                            break; // Stop if page keeps growing
+                        }
+                    }
+                    
+                    // Scroll to bottom
+                    window.scrollTo(0, document.body.scrollHeight);
+                    await new Promise(r => setTimeout(r, 300));
+                    
+                    // Scroll back to top
+                    window.scrollTo(0, 0);
+                    await new Promise(r => setTimeout(r, 200));
+                }
+            """)
+        except Exception as e:
+            logger.warning(f"Scroll to load failed: {e}")
+    
+    async def _wait_for_images(self, page: Page):
+        """
+        Wait for all images to be fully loaded.
+        """
+        try:
+            await page.evaluate("""
+                () => {
+                    return Promise.all(
+                        Array.from(document.images)
+                            .filter(img => !img.complete)
+                            .map(img => new Promise((resolve) => {
+                                img.onload = resolve;
+                                img.onerror = resolve;
+                                // Timeout for individual images
+                                setTimeout(resolve, 5000);
+                            }))
+                    );
+                }
+            """)
+            
+            # Also wait for background images in CSS
+            await page.evaluate("""
+                () => {
+                    const elements = document.querySelectorAll('*');
+                    const bgImages = [];
+                    
+                    elements.forEach(el => {
+                        const style = window.getComputedStyle(el);
+                        const bgImage = style.backgroundImage;
+                        if (bgImage && bgImage !== 'none' && bgImage.includes('url(')) {
+                            const urlMatch = bgImage.match(/url\\(["']?([^"')]+)["']?\\)/);
+                            if (urlMatch && urlMatch[1]) {
+                                bgImages.push(urlMatch[1]);
+                            }
+                        }
+                    });
+                    
+                    return Promise.all(
+                        bgImages.map(url => new Promise((resolve) => {
+                            const img = new Image();
+                            img.onload = resolve;
+                            img.onerror = resolve;
+                            img.src = url;
+                            setTimeout(resolve, 3000);
+                        }))
+                    );
+                }
+            """)
+        except Exception as e:
+            logger.warning(f"Wait for images failed: {e}")
+            await page.wait_for_timeout(1000)
+    
+    async def _wait_for_animations(self, page: Page):
+        """
+        Wait for CSS animations and transitions to complete.
+        """
+        try:
+            await page.evaluate("""
+                () => {
+                    return new Promise((resolve) => {
+                        // Get all elements with animations or transitions
+                        const elements = document.querySelectorAll('*');
+                        const animatedElements = [];
+                        
+                        elements.forEach(el => {
+                            const style = window.getComputedStyle(el);
+                            const animDuration = parseFloat(style.animationDuration) || 0;
+                            const transDuration = parseFloat(style.transitionDuration) || 0;
+                            
+                            if (animDuration > 0 || transDuration > 0) {
+                                animatedElements.push({
+                                    element: el,
+                                    duration: Math.max(animDuration, transDuration) * 1000
+                                });
+                            }
+                        });
+                        
+                        if (animatedElements.length === 0) {
+                            resolve();
+                            return;
+                        }
+                        
+                        // Wait for the longest animation (max 3 seconds)
+                        const maxWait = Math.min(
+                            Math.max(...animatedElements.map(a => a.duration)),
+                            3000
+                        );
+                        
+                        setTimeout(resolve, maxWait + 100);
+                    });
+                }
+            """)
+        except Exception as e:
+            logger.warning(f"Wait for animations failed: {e}")
+            await page.wait_for_timeout(500)
     
     async def extract_dom_structure(self, url: str, 
                                     viewport: Optional[Dict] = None) -> Dict:
