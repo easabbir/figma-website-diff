@@ -157,19 +157,21 @@ class ComparisonHistory:
         
         comparison_id = job_id
         
-        # Get the next comparison number for this user
+        # Get the next comparison number for this user from their comparison_count
         if user_id:
             cursor.execute("""
-                SELECT COALESCE(MAX(comparison_number), 0) + 1 as next_number 
-                FROM comparisons WHERE user_id = ?
+                SELECT comparison_count FROM users WHERE id = ?
             """, (user_id,))
+            row = cursor.fetchone()
+            # Use comparison_count + 1 as the next number (count will be incremented after completion)
+            comparison_number = (row['comparison_count'] if row else 0) + 1
         else:
             cursor.execute("""
                 SELECT COALESCE(MAX(comparison_number), 0) + 1 as next_number 
                 FROM comparisons WHERE user_id IS NULL
             """)
-        row = cursor.fetchone()
-        comparison_number = row['next_number'] if row else 1
+            row = cursor.fetchone()
+            comparison_number = row['next_number'] if row else 1
         
         cursor.execute("""
             INSERT INTO comparisons (
