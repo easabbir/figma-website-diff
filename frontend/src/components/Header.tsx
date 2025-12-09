@@ -27,7 +27,7 @@ export default function Header() {
               </div>
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">
-                  Figma ↔ Website UI Comparison
+                  Pixel Perfect UI
                 </h1>
                 <p className="text-sm text-gray-600">
                   Detect visual inconsistencies between design and implementation

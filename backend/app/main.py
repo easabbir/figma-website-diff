@@ -1,4 +1,4 @@
-"""FastAPI application for Figma-Website UI Comparison Tool."""
+"""FastAPI application for Pixel Perfect UI - Figma to Website Comparison."""
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware

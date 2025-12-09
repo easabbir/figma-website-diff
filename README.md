@@ -1,4 +1,4 @@
-# 🎨 Figma ↔ Website UI Comparison Tool
+# 🎨 Pixel Perfect UI
 
 A powerful Python + FastAPI tool that compares Figma designs with live websites to detect visual and UI inconsistencies. Features a modern React frontend with real-time progress updates, user authentication, and elegant UI design.
 
@@ -238,7 +238,7 @@ Copy `.env.example` to `.env` and configure:
 # ===========================================
 # APPLICATION SETTINGS
 # ===========================================
-APP_NAME=Figma-Website UI Comparison Tool
+APP_NAME=Pixel Perfect UI
 APP_VERSION=1.0.0
 DEBUG=True
 
@@ -247,6 +247,9 @@ DEBUG=True
 # ===========================================
 API_V1_PREFIX=/api/v1
 CORS_ORIGINS=["http://localhost:3000","http://localhost:5173"]
+
+# Frontend URL (for OAuth redirects)
+FRONTEND_URL=http://localhost:5173
 
 # ===========================================
 # FILE STORAGE

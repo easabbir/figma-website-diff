@@ -6,7 +6,11 @@ import { useAuth } from '../context/AuthContext'
 type AuthTab = 'login' | 'signup'
 type SignupStep = 'form' | 'otp'
 
-export default function AuthPage() {
+interface AuthPageProps {
+  onForgotPassword?: () => void
+}
+
+export default function AuthPage({ onForgotPassword }: AuthPageProps) {
   const [activeTab, setActiveTab] = useState<AuthTab>('login')
   const [signupStep, setSignupStep] = useState<SignupStep>('form')
   const [email, setEmail] = useState('')
@@ -202,7 +206,7 @@ export default function AuthPage() {
                 </div>
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-white tracking-tight">UI Diff Checker</h1>
+                <h1 className="text-2xl font-bold text-white tracking-tight">Pixel Perfect UI</h1>
                 <p className="text-white/60 text-sm font-medium">Figma ↔ Website Comparison</p>
               </div>
             </div>
@@ -243,7 +247,7 @@ export default function AuthPage() {
 
           {/* Footer */}
           <div className="flex items-center justify-between">
-            <p className="text-white/40 text-sm">© 2025 UI Diff Checker</p>
+            <p className="text-white/40 text-sm">© 2025 Pixel Perfect UI</p>
             <div className="flex items-center gap-2">
               <div className="flex -space-x-2">
                 {[...Array(4)].map((_, i) => (
@@ -268,7 +272,7 @@ export default function AuthPage() {
                 <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
               </svg>
             </div>
-            <h1 className="text-lg font-bold text-gray-900">UI Diff Checker</h1>
+            <h1 className="text-lg font-bold text-gray-900">Pixel Perfect UI</h1>
           </div>
 
           {/* Form Card */}
@@ -472,6 +476,17 @@ export default function AuthPage() {
                       <p className="text-xs text-gray-400 flex items-center gap-1">
                         <CheckCircle className="w-3 h-3" /> Minimum 6 characters
                       </p>
+                    )}
+                    {activeTab === 'login' && onForgotPassword && (
+                      <div className="text-right">
+                        <button
+                          type="button"
+                          onClick={onForgotPassword}
+                          className="text-xs text-violet-600 hover:text-violet-700 font-medium transition-colors"
+                        >
+                          Forgot password?
+                        </button>
+                      </div>
                     )}
                   </div>
 

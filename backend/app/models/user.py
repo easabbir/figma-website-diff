@@ -82,3 +82,16 @@ class OTPResponse(BaseModel):
     success: bool
     message: str
     expires_in_minutes: Optional[int] = None
+
+
+# Password Reset Schemas
+class ForgotPasswordRequest(BaseModel):
+    """Schema for requesting password reset."""
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    """Schema for resetting password with token."""
+    email: EmailStr
+    token: str
+    new_password: str = Field(..., min_length=6)

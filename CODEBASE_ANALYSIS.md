@@ -164,20 +164,13 @@ User → FigmaOAuth component → GET /oauth/authorize → Figma Login
 
 ### 🔴 Critical Issues
 
-1. **In-Memory Job Storage** (`endpoints.py:43-44`)
-   ```python
-   job_results: Dict[str, DiffReport] = {}
-   job_progress: Dict[str, ProgressUpdate] = {}
-   ```
-   - **Problem**: Data lost on server restart
-   - **Fix**: Use Redis or database for job state
+1. ~~**In-Memory Job Storage** (`endpoints.py:43-44`)~~ ✅ **FIXED**
+   - Now uses Redis with automatic fallback to in-memory storage
+   - See `job_storage.py` for implementation
 
-2. **Hardcoded Frontend URL** (`endpoints.py:843`)
-   ```python
-   frontend_url = "http://localhost:5173"
-   ```
-   - **Problem**: Won't work in production
-   - **Fix**: Use environment variable
+2. ~~**Hardcoded Frontend URL** (`endpoints.py:843`)~~ ✅ **FIXED**
+   - Now uses `settings.FRONTEND_URL` from environment variable
+   - Configure via `FRONTEND_URL` in `.env`
 
 3. **Token Storage in JSON File** (`figma_oauth.py:24`)
    ```python

@@ -14,12 +14,15 @@ class Settings(BaseSettings):
     )
     
     # Application
-    APP_NAME: str = "Figma-Website UI Comparison Tool"
+    APP_NAME: str = "Pixel Perfect UI"
     APP_VERSION: str = "1.0.0"
     DEBUG: bool = True
     
     # API
     API_V1_PREFIX: str = "/api/v1"
+    
+    # Frontend URL (for OAuth redirects)
+    FRONTEND_URL: str = "http://localhost:5173"
     
     # CORS
     CORS_ORIGINS: List[str] = [
@@ -55,10 +58,8 @@ class Settings(BaseSettings):
     SPACING_TOLERANCE: int = 2  # Pixels
     PIXEL_DIFF_THRESHOLD: float = 0.95  # SSIM threshold
     
-    # Redis (for Celery)
-    REDIS_HOST: str = "localhost"
-    REDIS_PORT: int = 6379
-    REDIS_DB: int = 0
+    # Redis
+    REDIS_URL: str = "redis://localhost:6379/0"
     
     # Celery
     CELERY_BROKER_URL: str = "redis://localhost:6379/0"

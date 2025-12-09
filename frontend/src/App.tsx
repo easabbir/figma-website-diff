@@ -7,6 +7,10 @@ import ReportDisplay from './components/ReportDisplay'
 import Header from './components/Header'
 import HistoryView from './components/HistoryView'
 import AuthPage from './components/AuthPage'
+import ForgotPasswordPage from './components/ForgotPasswordPage'
+import ResetPasswordPage from './components/ResetPasswordPage'
+
+type AuthView = 'login' | 'forgot-password' | 'reset-password'
 
 export interface ComparisonResult {
   jobId: string
@@ -29,8 +33,26 @@ function MainApp() {
   const [showHistory, setShowHistory] = useState(false)
   const [cachedFormData, setCachedFormData] = useState<CachedFormData | null>(null)
   const [isFromHistory, setIsFromHistory] = useState(false)
+  const [authView, setAuthView] = useState<AuthView>('login')
+  const [resetEmail, setResetEmail] = useState('')
+  const [resetToken, setResetToken] = useState('')
   const { isAuthenticated, isLoading, user } = useAuth()
   const prevUserIdRef = useRef<string | null>(null)
+
+  // Check for password reset URL params on mount
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const email = params.get('email')
+    const token = params.get('token')
+    
+    if (email && token && window.location.pathname === '/reset-password') {
+      setResetEmail(email)
+      setResetToken(token)
+      setAuthView('reset-password')
+      // Clean up URL
+      window.history.replaceState({}, '', '/')
+    }
+  }, [])
 
   // Clear form data when user changes (login/logout)
   useEffect(() => {
@@ -75,7 +97,30 @@ function MainApp() {
 
   // Show auth page if not authenticated
   if (!isAuthenticated) {
-    return <AuthPage />
+    if (authView === 'forgot-password') {
+      return (
+        <ForgotPasswordPage 
+          onBack={() => setAuthView('login')} 
+        />
+      )
+    }
+    
+    if (authView === 'reset-password') {
+      return (
+        <ResetPasswordPage 
+          email={resetEmail}
+          token={resetToken}
+          onBack={() => setAuthView('login')}
+          onSuccess={() => setAuthView('login')}
+        />
+      )
+    }
+    
+    return (
+      <AuthPage 
+        onForgotPassword={() => setAuthView('forgot-password')} 
+      />
+    )
   }
 
   // Show main app if authenticated

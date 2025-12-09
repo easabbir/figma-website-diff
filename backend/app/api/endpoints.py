@@ -871,23 +871,20 @@ async def oauth_callback(code: str = Query(...), state: str = Query(...)):
         token_data = figma_oauth.exchange_code_for_token(code)
         
         # Redirect to frontend with success
-        frontend_url = "http://localhost:5173"
         return RedirectResponse(
-            url=f"{frontend_url}?oauth=success&user_id={token_data.get('user_id_string', 'unknown')}",
+            url=f"{settings.FRONTEND_URL}?oauth=success&user_id={token_data.get('user_id_string', 'unknown')}",
             status_code=302
         )
     except ValueError as e:
         logger.error(f"OAuth callback error: {e}")
-        frontend_url = "http://localhost:5173"
         return RedirectResponse(
-            url=f"{frontend_url}?oauth=error&message={str(e)}",
+            url=f"{settings.FRONTEND_URL}?oauth=error&message={str(e)}",
             status_code=302
         )
     except Exception as e:
         logger.error(f"OAuth callback error: {e}")
-        frontend_url = "http://localhost:5173"
         return RedirectResponse(
-            url=f"{frontend_url}?oauth=error&message=Authentication failed",
+            url=f"{settings.FRONTEND_URL}?oauth=error&message=Authentication failed",
             status_code=302
         )
 
