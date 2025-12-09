@@ -31,6 +31,7 @@ from ..services.report_generator import ReportGenerator
 from ..services.pdf_generator import PDFReportGenerator
 from ..services.figma_oauth import figma_oauth
 from ..services.auth import get_current_user
+from ..services.job_storage import job_storage
 from ..models.database import history_db, user_db
 from ..config import get_settings
 
@@ -38,10 +39,6 @@ logger = logging.getLogger(__name__)
 settings = get_settings()
 
 router = APIRouter()
-
-# In-memory storage for job results (use Redis in production)
-job_results: Dict[str, DiffReport] = {}
-job_progress: Dict[str, ProgressUpdate] = {}
 
 
 async def process_comparison_job(
@@ -63,13 +60,13 @@ async def process_comparison_job(
     """
     try:
         # Update progress
-        job_progress[job_id] = ProgressUpdate(
+        job_storage.set_progress(job_id, ProgressUpdate(
             job_id=job_id,
             status="processing",
             progress=10,
             message="Starting comparison...",
             current_step="initialization"
-        )
+        ))
         
         # Create output directory
         output_dir = Path(settings.OUTPUT_DIR) / job_id
@@ -87,9 +84,10 @@ async def process_comparison_job(
         )
         
         # Step 1: Extract Figma data
-        job_progress[job_id].progress = 20
-        job_progress[job_id].message = "Extracting Figma design data..."
-        job_progress[job_id].current_step = "figma_extraction"
+        job_storage.set_progress(job_id, ProgressUpdate(
+            job_id=job_id, status="processing", progress=20,
+            message="Extracting Figma design data...", current_step="figma_extraction"
+        ))
         
         figma_extractor = FigmaExtractor()
         
@@ -107,9 +105,10 @@ async def process_comparison_job(
             )
         
         # Step 2: Analyze website
-        job_progress[job_id].progress = 50
-        job_progress[job_id].message = "Analyzing website..."
-        job_progress[job_id].current_step = "website_analysis"
+        job_storage.set_progress(job_id, ProgressUpdate(
+            job_id=job_id, status="processing", progress=50,
+            message="Analyzing website...", current_step="website_analysis"
+        ))
         
         viewport = options.get("viewport", {})
         website_data = await analyze_website_async(
@@ -120,9 +119,10 @@ async def process_comparison_job(
         )
         
         # Step 3: Compare
-        job_progress[job_id].progress = 75
-        job_progress[job_id].message = "Comparing designs..."
-        job_progress[job_id].current_step = "comparison"
+        job_storage.set_progress(job_id, ProgressUpdate(
+            job_id=job_id, status="processing", progress=75,
+            message="Comparing designs...", current_step="comparison"
+        ))
         
         comparator = UIComparator(
             color_tolerance=options.get("tolerance", {}).get("color", settings.COLOR_TOLERANCE),
@@ -133,9 +133,10 @@ async def process_comparison_job(
         report = comparator.compare(figma_data, website_data, output_dir, job_id)
         
         # Step 4: Generate reports
-        job_progress[job_id].progress = 90
-        job_progress[job_id].message = "Generating reports..."
-        job_progress[job_id].current_step = "report_generation"
+        job_storage.set_progress(job_id, ProgressUpdate(
+            job_id=job_id, status="processing", progress=90,
+            message="Generating reports...", current_step="report_generation"
+        ))
         
         report_generator = ReportGenerator()
         
@@ -169,23 +170,24 @@ async def process_comparison_job(
             logger.info(f"User {user_id} comparison count: {new_count}")
         
         # Complete
-        job_progress[job_id].progress = 100
-        job_progress[job_id].status = "completed"
-        job_progress[job_id].message = "Comparison complete!"
+        job_storage.set_progress(job_id, ProgressUpdate(
+            job_id=job_id, status="completed", progress=100,
+            message="Comparison complete!"
+        ))
         
-        job_results[job_id] = report
+        job_storage.set_result(job_id, report)
         
         logger.info(f"Job {job_id} completed successfully")
         
     except Exception as e:
         logger.error(f"Error processing job {job_id}: {e}", exc_info=True)
         
-        job_progress[job_id] = ProgressUpdate(
+        job_storage.set_progress(job_id, ProgressUpdate(
             job_id=job_id,
             status="failed",
             progress=0,
             message=f"Error: {str(e)}"
-        )
+        ))
         
         # Update history with failure
         history_db.update_comparison_result(
@@ -198,13 +200,13 @@ async def process_comparison_job(
             status="failed"
         )
         
-        # Create error report
+        # Create error report and store in Redis
         error_report = DiffReport(
             job_id=job_id,
             status="failed",
             error=str(e)
         )
-        job_results[job_id] = error_report
+        job_storage.set_result(job_id, error_report)
 
 
 @router.post("/compare", response_model=ComparisonResponse)
@@ -233,12 +235,12 @@ async def create_comparison(
     logger.info(f"Creating comparison job {job_id} for user {user_id}")
     
     # Initialize progress
-    job_progress[job_id] = ProgressUpdate(
+    job_storage.set_progress(job_id, ProgressUpdate(
         job_id=job_id,
         status="queued",
         progress=0,
         message="Job queued for processing"
-    )
+    ))
     
     # Add background task
     background_tasks.add_task(
@@ -270,13 +272,14 @@ async def get_report(job_id: str) -> DiffReport:
     Returns:
         Difference report
     """
-    # First check in-memory cache
-    if job_id in job_results:
-        return job_results[job_id]
+    # First check Redis/memory cache
+    result = job_storage.get_result(job_id)
+    if result:
+        return result
     
     # Check if job is in progress
-    if job_id in job_progress:
-        progress = job_progress[job_id]
+    progress = job_storage.get_progress(job_id)
+    if progress:
         if progress.status == "processing" or progress.status == "queued":
             raise HTTPException(
                 status_code=202,
@@ -291,7 +294,7 @@ async def get_report(job_id: str) -> DiffReport:
                 report_data = json.load(f)
             # Cache it for future requests
             report = DiffReport(**report_data)
-            job_results[job_id] = report
+            job_storage.set_result(job_id, report)
             return report
         except Exception as e:
             logger.error(f"Failed to load report from file: {e}")
@@ -310,10 +313,11 @@ async def get_progress(job_id: str) -> ProgressUpdate:
     Returns:
         Progress update
     """
-    if job_id not in job_progress:
+    progress = job_storage.get_progress(job_id)
+    if not progress:
         raise HTTPException(status_code=404, detail="Job not found")
     
-    return job_progress[job_id]
+    return progress
 
 
 @router.get("/jobs")
@@ -325,13 +329,15 @@ async def list_jobs() -> Dict:
         Dictionary of job IDs and their status
     """
     jobs = {}
-    for job_id in job_progress.keys():
-        jobs[job_id] = {
-            "status": job_progress[job_id].status,
-            "progress": job_progress[job_id].progress,
-            "message": job_progress[job_id].message
-        }
-    return {"jobs": jobs}
+    for jid in job_storage.list_jobs():
+        progress = job_storage.get_progress(jid)
+        if progress:
+            jobs[jid] = {
+                "status": progress.status,
+                "progress": progress.progress,
+                "message": progress.message
+            }
+    return {"jobs": jobs, "storage_stats": job_storage.get_stats()}
 
 
 @router.delete("/job/{job_id}")
@@ -345,9 +351,8 @@ async def delete_job(job_id: str) -> Dict:
     Returns:
         Confirmation message
     """
-    # Remove from memory
-    job_results.pop(job_id, None)
-    job_progress.pop(job_id, None)
+    # Remove from storage
+    job_storage.delete_job(job_id)
     
     # Remove files
     output_dir = Path(settings.OUTPUT_DIR) / job_id
@@ -380,10 +385,20 @@ async def download_pdf_report(job_id: str) -> FileResponse:
     Returns:
         PDF file download
     """
-    if job_id not in job_results:
-        raise HTTPException(status_code=404, detail="Job not found")
-    
-    report = job_results[job_id]
+    report = job_storage.get_result(job_id)
+    if not report:
+        # Try loading from file
+        report_path = Path(settings.OUTPUT_DIR) / job_id / "report.json"
+        if report_path.exists():
+            try:
+                with open(report_path, 'r') as f:
+                    report_data = json.load(f)
+                report = DiffReport(**report_data)
+            except Exception as e:
+                logger.error(f"Failed to load report: {e}")
+                raise HTTPException(status_code=404, detail="Job not found")
+        else:
+            raise HTTPException(status_code=404, detail="Job not found")
     
     if report.status != "completed":
         raise HTTPException(status_code=400, detail="Report not yet completed")
@@ -535,8 +550,6 @@ async def delete_all_history(
 
 # ============ Responsive Mode Endpoints ============
 
-responsive_job_results: Dict[str, ResponsiveReport] = {}
-
 
 async def process_responsive_comparison(
     job_id: str,
@@ -552,13 +565,13 @@ async def process_responsive_comparison(
     """
     try:
         # Initialize progress
-        job_progress[job_id] = ProgressUpdate(
+        job_storage.set_progress(job_id, ProgressUpdate(
             job_id=job_id,
             status="processing",
             progress=5,
             message="Starting responsive comparison...",
             current_step="initialization"
-        )
+        ))
         
         # Create output directory
         output_dir = Path(settings.OUTPUT_DIR) / job_id
@@ -576,8 +589,10 @@ async def process_responsive_comparison(
         )
         
         # Extract Figma data once (reuse for all viewports)
-        job_progress[job_id].progress = 10
-        job_progress[job_id].message = "Extracting Figma design data..."
+        job_storage.set_progress(job_id, ProgressUpdate(
+            job_id=job_id, status="processing", progress=10,
+            message="Extracting Figma design data..."
+        ))
         
         figma_extractor = FigmaExtractor()
         figma_data = figma_extractor.extract_from_url(
@@ -597,9 +612,11 @@ async def process_responsive_comparison(
             viewport_height = viewport["height"]
             
             progress_base = 20 + (i * 70 // total_viewports)
-            job_progress[job_id].progress = progress_base
-            job_progress[job_id].message = f"Analyzing {viewport_name} ({viewport_width}x{viewport_height})..."
-            job_progress[job_id].current_step = f"viewport_{viewport_name}"
+            job_storage.set_progress(job_id, ProgressUpdate(
+                job_id=job_id, status="processing", progress=progress_base,
+                message=f"Analyzing {viewport_name} ({viewport_width}x{viewport_height})...",
+                current_step=f"viewport_{viewport_name}"
+            ))
             
             # Create viewport-specific output directory
             viewport_dir = output_dir / viewport_name
@@ -654,8 +671,10 @@ async def process_responsive_comparison(
         total_diffs = sum(v.total_differences for v in viewport_results)
         
         # Generate PDF report
-        job_progress[job_id].progress = 95
-        job_progress[job_id].message = "Generating PDF report..."
+        job_storage.set_progress(job_id, ProgressUpdate(
+            job_id=job_id, status="processing", progress=95,
+            message="Generating PDF report..."
+        ))
         
         # Create responsive report
         responsive_report = ResponsiveReport(
@@ -682,23 +701,27 @@ async def process_responsive_comparison(
         )
         
         # Complete
-        job_progress[job_id].progress = 100
-        job_progress[job_id].status = "completed"
-        job_progress[job_id].message = f"Responsive comparison complete! Tested {len(viewports)} viewports."
+        job_storage.set_progress(job_id, ProgressUpdate(
+            job_id=job_id, status="completed", progress=100,
+            message=f"Responsive comparison complete! Tested {len(viewports)} viewports."
+        ))
         
-        responsive_job_results[job_id] = responsive_report
+        # Store responsive report as JSON in output dir
+        responsive_report_path = output_dir / "responsive_report.json"
+        with open(responsive_report_path, 'w') as f:
+            json.dump(responsive_report.model_dump(mode='json'), f, indent=2, default=str)
         
         logger.info(f"Responsive job {job_id} completed successfully")
         
     except Exception as e:
         logger.error(f"Error processing responsive job {job_id}: {e}", exc_info=True)
         
-        job_progress[job_id] = ProgressUpdate(
+        job_storage.set_progress(job_id, ProgressUpdate(
             job_id=job_id,
             status="failed",
             progress=0,
             message=str(e)
-        )
+        ))
         
         history_db.update_comparison_result(
             job_id=job_id,
@@ -731,12 +754,12 @@ async def create_responsive_comparison(
     logger.info(f"Creating responsive comparison job {job_id} with {len(request.viewports)} viewports")
     
     # Initialize progress
-    job_progress[job_id] = ProgressUpdate(
+    job_storage.set_progress(job_id, ProgressUpdate(
         job_id=job_id,
         status="queued",
         progress=0,
         message=f"Queued for processing ({len(request.viewports)} viewports)"
-    )
+    ))
     
     # Add background task
     background_tasks.add_task(
@@ -770,17 +793,25 @@ async def get_responsive_report(job_id: str) -> ResponsiveReport:
     Returns:
         Responsive comparison report with all viewport results
     """
-    if job_id not in responsive_job_results:
-        if job_id in job_progress:
-            progress = job_progress[job_id]
-            if progress.status in ["processing", "queued"]:
-                raise HTTPException(
-                    status_code=202,
-                    detail=f"Job is still processing: {progress.message}"
-                )
-        raise HTTPException(status_code=404, detail="Responsive job not found")
+    # Check if job is in progress
+    progress = job_storage.get_progress(job_id)
+    if progress and progress.status in ["processing", "queued"]:
+        raise HTTPException(
+            status_code=202,
+            detail=f"Job is still processing: {progress.message}"
+        )
     
-    return responsive_job_results[job_id]
+    # Try to load from file
+    report_path = Path(settings.OUTPUT_DIR) / job_id / "responsive_report.json"
+    if report_path.exists():
+        try:
+            with open(report_path, 'r') as f:
+                report_data = json.load(f)
+            return ResponsiveReport(**report_data)
+        except Exception as e:
+            logger.error(f"Failed to load responsive report: {e}")
+    
+    raise HTTPException(status_code=404, detail="Responsive job not found")
 
 
 # ============================================================================

@@ -6,13 +6,11 @@ import asyncio
 import logging
 
 from ..models.schemas import ProgressUpdate
+from ..services.job_storage import job_storage
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
-
-# Import job progress from endpoints
-from .endpoints import job_progress
 
 
 class ConnectionManager:
@@ -61,16 +59,17 @@ async def websocket_progress(websocket: WebSocket, job_id: str):
     
     try:
         # Send initial progress
-        if job_id in job_progress:
-            await manager.send_progress(job_id, job_progress[job_id])
+        progress = job_storage.get_progress(job_id)
+        if progress:
+            await manager.send_progress(job_id, progress)
         
         # Keep connection alive and send updates
         while True:
             # Check for progress updates every second
             await asyncio.sleep(1)
             
-            if job_id in job_progress:
-                progress = job_progress[job_id]
+            progress = job_storage.get_progress(job_id)
+            if progress:
                 await manager.send_progress(job_id, progress)
                 
                 # Close connection if job is completed or failed
