@@ -2,10 +2,12 @@
 
 A powerful Python + FastAPI tool that compares Figma designs with live websites to detect visual and UI inconsistencies. Features a modern React frontend with real-time progress updates, user authentication, and elegant UI design.
 
-![Version](https://img.shields.io/badge/version-1.4.0-blue.svg)
+![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.11+-blue.svg)
 ![React](https://img.shields.io/badge/react-18.2-blue.svg)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.115-green.svg)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-blue.svg)
+![Docker](https://img.shields.io/badge/Docker-ready-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 
 ## 📋 Table of Contents
@@ -21,14 +23,17 @@ A powerful Python + FastAPI tool that compares Figma designs with live websites 
 - [Troubleshooting](#-troubleshooting)
 - [Contributing](#-contributing)
 
-## 🆕 What's New (v1.4.0)
+## 🆕 What's New (v2.0.0)
 
 ### Latest Features
-- ✅ **Redis Job Storage** - Persistent job state with automatic fallback to in-memory
+- ✅ **PostgreSQL + SQLAlchemy** - Production-ready database with ORM
+- ✅ **Docker Ready** - One-command deployment with docker-compose
+- ✅ **Improved Progress Bar** - Smooth animations and real-time step display
+- ✅ **Forgot Password** - Secure password reset via email
 - ✅ **Email OTP Verification** - Secure signup with 6-digit email verification
 - ✅ **Figma OAuth Integration** - Connect with Figma OAuth for seamless authentication
 - ✅ **PDF Export** - Download professional PDF reports
-- ✅ **Comparison History** - View and manage past comparisons with SQLite storage
+- ✅ **Comparison History** - View and manage past comparisons
 - ✅ **Responsive Mode** - Compare designs across multiple viewports
 
 ## ✨ Features
@@ -36,9 +41,9 @@ A powerful Python + FastAPI tool that compares Figma designs with live websites 
 | Category | Features |
 |----------|----------|
 | **🎯 Comparison** | Color analysis, Typography, Layout & spacing, Dimensions, Pixel-perfect visual diff |
-| **🚀 Architecture** | FastAPI backend, React + TailwindCSS frontend, WebSocket progress, Redis job storage |
+| **🚀 Architecture** | FastAPI backend, React + TailwindCSS frontend, PostgreSQL + SQLAlchemy, Docker support |
 | **📊 Reports** | JSON, HTML, PDF exports, Interactive slider comparison |
-| **🔐 Security** | JWT auth, Email OTP verification, Figma OAuth, User-specific history |
+| **🔐 Security** | JWT auth, Email OTP verification, Password reset, Figma OAuth |
 
 ## 💻 System Requirements
 
@@ -46,17 +51,43 @@ A powerful Python + FastAPI tool that compares Figma designs with live websites 
 |-------------|---------|-------|
 | **Python** | 3.11 - 3.13 | 3.14 not yet supported |
 | **Node.js** | 18+ | With npm |
-| **Redis** | 6+ | Optional (falls back to in-memory) |
+| **PostgreSQL** | 14+ | Required for production |
+| **Docker** | 20+ | Optional (for containerized deployment) |
 | **OS** | Windows, macOS, Linux | All platforms supported |
 
 ## 🚀 Quick Start
 
-### One-Command Setup (macOS/Linux)
+### 🐳 Docker (Recommended)
+
+The fastest way to get started:
+
+```bash
+# Clone the repository
+git clone <your-repo-url> figma-website-diff
+cd figma-website-diff
+
+# Start all services (PostgreSQL, Backend, Frontend)
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+```
+
+**Access the app at:** http://localhost:5173
+
+### Manual Setup (macOS/Linux)
 
 ```bash
 # Clone and setup everything
 git clone <your-repo-url> figma-website-diff
 cd figma-website-diff
+
+# Start PostgreSQL (if not using Docker)
+# macOS: brew install postgresql && brew services start postgresql
+# Ubuntu: sudo apt install postgresql && sudo systemctl start postgresql
+
+# Create database
+createdb pixel_perfect_ui
 
 # Backend
 cd backend
@@ -197,10 +228,17 @@ docker run -d -p 6379:6379 --name redis redis:alpine
 
 #### Docker (All Platforms)
 ```bash
-docker run -d -p 6379:6379 --name redis redis:alpine
-```
+# macOS
+brew install postgresql
+brew services start postgresql
 
-> **Note:** If Redis is not available, the app automatically falls back to in-memory storage.
+# Ubuntu/Debian
+sudo apt install postgresql postgresql-contrib
+sudo systemctl start postgresql
+
+# Create database
+createdb pixel_perfect_ui
+```
 
 ---
 
@@ -209,15 +247,28 @@ docker run -d -p 6379:6379 --name redis redis:alpine
 ### Using Docker Compose (Recommended)
 
 ```bash
-# Build and start all services
+# Build and start all services (PostgreSQL, Backend, Frontend)
 docker-compose up --build
 
 # Run in background
 docker-compose up -d --build
 
+# View logs
+docker-compose logs -f
+
 # Stop services
 docker-compose down
+
+# Stop and remove volumes (clears database)
+docker-compose down -v
 ```
+
+### Docker Services
+| Service | Container | Port | Description |
+|---------|-----------|------|-------------|
+| **PostgreSQL** | pixel-perfect-db | 5432 | Database |
+| **Backend** | pixel-perfect-backend | 8000 | FastAPI API |
+| **Frontend** | pixel-perfect-frontend | 5173 | React App |
 
 ### Access Points
 | Service | URL |
@@ -225,6 +276,17 @@ docker-compose down
 | Frontend | http://localhost:5173 |
 | Backend API | http://localhost:8000 |
 | API Documentation | http://localhost:8000/api/docs |
+
+### Data Migration (SQLite to PostgreSQL)
+
+If you have existing data from a previous SQLite installation:
+
+```bash
+# Run migration script
+cd backend
+source venv/bin/activate
+python scripts/migrate_sqlite_to_postgres.py
+```
 
 ---
 
@@ -285,10 +347,11 @@ SPACING_TOLERANCE=2      # Pixels
 PIXEL_DIFF_THRESHOLD=0.95
 
 # ===========================================
-# REDIS (Job State Persistence)
+# DATABASE (PostgreSQL)
 # ===========================================
-# Falls back to in-memory if Redis unavailable
-REDIS_URL=redis://localhost:6379/0
+# For Docker: postgresql://postgres:postgres@db:5432/pixel_perfect_ui
+# For local: postgresql://postgres:postgres@localhost:5432/pixel_perfect_ui
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/pixel_perfect_ui
 
 # ===========================================
 # EMAIL (OTP Verification)
@@ -298,7 +361,7 @@ SMTP_PORT=587
 SMTP_USER=your-email@gmail.com
 SMTP_PASSWORD=your-app-password
 SENDER_EMAIL=your-email@gmail.com
-SENDER_NAME=UI Diff Checker
+SENDER_NAME=Pixel Perfect UI
 ```
 
 ### Figma OAuth Setup

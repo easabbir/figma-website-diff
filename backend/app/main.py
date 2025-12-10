@@ -8,6 +8,7 @@ import logging
 
 from .config import get_settings
 from .api import endpoints, websocket, auth_endpoints
+from .db.base import init_db
 
 # Configure logging
 logging.basicConfig(
@@ -58,6 +59,15 @@ async def startup_event():
     logger.info(f"Starting {settings.APP_NAME} v{settings.APP_VERSION}")
     logger.info(f"Debug mode: {settings.DEBUG}")
     
+    # Initialize database tables
+    try:
+        logger.info("Initializing database...")
+        init_db()
+        logger.info("Database initialized successfully")
+    except Exception as e:
+        logger.error(f"Failed to initialize database: {e}")
+        logger.warning("Make sure PostgreSQL is running and DATABASE_URL is correct")
+    
     # Install Playwright browsers if not already installed
     try:
         import subprocess
@@ -78,7 +88,7 @@ async def shutdown_event():
 async def root():
     """Root endpoint."""
     return {
-        "message": "Figma-Website UI Comparison Tool API",
+        "message": "Pixel Perfect UI API",
         "version": settings.APP_VERSION,
         "docs": "/api/docs",
         "health": "/api/v1/health"

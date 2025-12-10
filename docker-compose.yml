@@ -1,9 +1,28 @@
-version: '3.8'
-
 services:
+  # PostgreSQL Database
+  db:
+    image: postgres:16-alpine
+    container_name: pixel-perfect-db
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: pixel_perfect_ui
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend API
   backend:
     build: ./backend
-    container_name: figma-diff-backend
+    container_name: pixel-perfect-backend
+    restart: unless-stopped
     ports:
       - "8000:8000"
     volumes:
@@ -12,19 +31,26 @@ services:
     environment:
       - DEBUG=True
       - API_V1_PREFIX=/api/v1
-      - CORS_ORIGINS=http://localhost:5173,http://localhost:3000
+      - CORS_ORIGINS=["http://localhost:5173","http://localhost:3000"]
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/pixel_perfect_ui
+      - FRONTEND_URL=http://localhost:5173
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    depends_on:
+      db:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
       interval: 30s
       timeout: 10s
       retries: 3
 
+  # Frontend React App
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: figma-diff-frontend
+    container_name: pixel-perfect-frontend
+    restart: unless-stopped
     ports:
       - "5173:5173"
     volumes:
@@ -36,15 +62,6 @@ services:
     depends_on:
       - backend
 
-  # Optional: Redis for production (caching & job queue)
-  # redis:
-  #   image: redis:7-alpine
-  #   container_name: figma-diff-redis
-  #   ports:
-  #     - "6379:6379"
-  #   volumes:
-  #     - redis-data:/data
-
 volumes:
+  postgres-data:
   backend-outputs:
-  # redis-data:

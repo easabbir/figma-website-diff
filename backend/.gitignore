@@ -43,6 +43,11 @@ outputs/
 static/
 *.log
 
+# Data files with sensitive info
+data/oauth_tokens.json
+data/otp_storage.json
+data/reset_tokens.json
+
 # Testing
 .pytest_cache/
 .coverage

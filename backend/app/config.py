@@ -58,12 +58,8 @@ class Settings(BaseSettings):
     SPACING_TOLERANCE: int = 2  # Pixels
     PIXEL_DIFF_THRESHOLD: float = 0.95  # SSIM threshold
     
-    # Redis
-    REDIS_URL: str = "redis://localhost:6379/0"
-    
-    # Celery
-    CELERY_BROKER_URL: str = "redis://localhost:6379/0"
-    CELERY_RESULT_BACKEND: str = "redis://localhost:6379/0"
+    # Database (PostgreSQL)
+    DATABASE_URL: str = "postgresql://postgres:postgres@localhost:5432/pixel_perfect_ui"
 
 
 @lru_cache()

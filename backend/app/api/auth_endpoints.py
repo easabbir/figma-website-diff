@@ -34,7 +34,7 @@ from ..services.email_service import (
     verify_reset_token,
     invalidate_reset_token
 )
-from ..models.database import user_db
+from ..services.user_service import user_db
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -306,7 +306,8 @@ async def forgot_password(request: ForgotPasswordRequest):
         # User exists, send reset email
         result = send_password_reset_request(
             email=request.email,
-            full_name=user.get("full_name")
+            full_name=user.get("full_name"),
+            user_id=user.get("id")
         )
         
         if not result["success"]:

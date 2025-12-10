@@ -37,12 +37,27 @@ export default function ReportDisplay({ jobId, onBack, fromHistory = false }: Re
   const { refreshUser } = useAuth()
   const [report, setReport] = useState<DiffReport | null>(null)
   const [progress, setProgress] = useState(0)
+  const [displayProgress, setDisplayProgress] = useState(0)  // Smoothed progress for display
+  const [progressMessage, setProgressMessage] = useState('Initializing...')
+  const [currentStep, setCurrentStep] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<'slider' | 'sideBySide'>('slider')
   const [figmaImageError, setFigmaImageError] = useState(false)
   const [websiteImageError, setWebsiteImageError] = useState(false)
   const [toastShown, setToastShown] = useState(false)
+
+  // Smooth progress animation - interpolate between actual progress values
+  useEffect(() => {
+    if (displayProgress < progress) {
+      const diff = progress - displayProgress
+      const step = Math.max(1, Math.ceil(diff / 10))  // Animate in steps
+      const timer = setTimeout(() => {
+        setDisplayProgress(prev => Math.min(prev + step, progress))
+      }, 50)  // 50ms intervals for smooth animation
+      return () => clearTimeout(timer)
+    }
+  }, [progress, displayProgress])
 
   useEffect(() => {
     let progressInterval: ReturnType<typeof setInterval>
@@ -51,7 +66,9 @@ export default function ReportDisplay({ jobId, onBack, fromHistory = false }: Re
     const fetchProgress = async () => {
       try {
         const response = await axios.get(`/api/v1/progress/${jobId}`)
-        setProgress(response.data.progress)
+        setProgress(response.data.progress || 0)
+        setProgressMessage(response.data.message || 'Processing...')
+        setCurrentStep(response.data.current_step || '')
         console.log('Progress update:', response.data.status, response.data.progress + '%', response.data.message)
 
         if ((response.data.status === 'completed' || response.data.status === 'failed') && !reportFetched) {
@@ -160,24 +177,50 @@ export default function ReportDisplay({ jobId, onBack, fromHistory = false }: Re
     return (
       <div className="max-w-4xl mx-auto">
         <div className="card text-center py-12">
-          <Loader2 className="w-16 h-16 text-primary-600 animate-spin mx-auto mb-4" />
+          {/* Animated Logo */}
+          <div className="relative inline-block mb-6">
+            <div className="absolute inset-0 bg-primary-400 rounded-full blur-xl opacity-30 animate-pulse" />
+            <Loader2 className="w-16 h-16 text-primary-600 animate-spin relative" />
+          </div>
+          
           <h2 className="text-2xl font-bold text-gray-900 mb-2">
             Processing Comparison...
           </h2>
-          <p className="text-gray-600 mb-6">
+          
+          {/* Current Step Display */}
+          <p className="text-gray-600 mb-2">
+            {progressMessage}
+          </p>
+          {currentStep && (
+            <p className="text-sm text-primary-600 font-medium mb-4">
+              {currentStep}
+            </p>
+          )}
+
+          {/* Enhanced Progress Bar */}
+          <div className="max-w-md mx-auto">
+            <div className="w-full bg-gray-100 rounded-full h-4 mb-3 overflow-hidden shadow-inner">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-primary-500 via-primary-600 to-violet-600 relative overflow-hidden"
+                style={{ 
+                  width: `${displayProgress}%`,
+                  transition: 'width 0.3s ease-out'
+                }}
+              >
+                {/* Shimmer effect */}
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer" />
+              </div>
+            </div>
+            <div className="flex justify-between items-center text-sm">
+              <span className="text-gray-500">Progress</span>
+              <span className="font-semibold text-primary-600">{displayProgress}%</span>
+            </div>
+          </div>
+
+          {/* Helpful tip */}
+          <p className="text-xs text-gray-400 mt-6">
             This may take a minute. Please wait while we analyze your design and website.
           </p>
-
-          {/* Progress Bar */}
-          <div className="max-w-md mx-auto">
-            <div className="w-full bg-gray-200 rounded-full h-3 mb-2 overflow-hidden">
-              <div
-                className="bg-primary-600 h-full transition-all duration-300 ease-out"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-            <p className="text-sm text-gray-600">{progress}% Complete</p>
-          </div>
         </div>
       </div>
     )
