@@ -9,8 +9,8 @@ import bcrypt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
-from ..models.database import user_db
-from ..models.user import UserCreate, UserResponse, Token, TokenData
+from app.services.user_service import user_db
+from app.models.user import UserCreate, UserResponse, Token, TokenData
 
 # Configuration
 SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-secret-key-change-in-production-figma-diff-2024")

@@ -6,9 +6,9 @@ from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 import logging
 
-from .config import get_settings
-from .api import endpoints, websocket, auth_endpoints
-from .db.base import init_db
+from app.config import get_settings
+from app.api import auth_endpoints, comparison_endpoints, history_endpoints, pdf_endpoints, oauth_endpoints, websocket
+from app.db.base import init_db
 
 # Configure logging
 logging.basicConfig(
@@ -48,9 +48,12 @@ Path(settings.STATIC_DIR).mkdir(exist_ok=True)
 app.mount("/static", StaticFiles(directory=settings.OUTPUT_DIR), name="static")
 
 # Include routers
-app.include_router(endpoints.router, prefix=settings.API_V1_PREFIX, tags=["comparison"])
-app.include_router(websocket.router, prefix=settings.API_V1_PREFIX, tags=["websocket"])
 app.include_router(auth_endpoints.router, prefix=settings.API_V1_PREFIX, tags=["authentication"])
+app.include_router(comparison_endpoints.router, prefix=settings.API_V1_PREFIX, tags=["comparison"])
+app.include_router(history_endpoints.router, prefix=settings.API_V1_PREFIX, tags=["history"])
+app.include_router(pdf_endpoints.router, prefix=settings.API_V1_PREFIX, tags=["pdf"])
+app.include_router(oauth_endpoints.router, prefix=settings.API_V1_PREFIX, tags=["oauth"])
+app.include_router(websocket.router, prefix=settings.API_V1_PREFIX, tags=["websocket"])
 
 
 @app.on_event("startup")

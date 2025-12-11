@@ -3,7 +3,7 @@
 from sqlalchemy import (
     Column, String, Integer, Float, Boolean, Text, DateTime, ForeignKey, JSON, Enum
 )
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, declarative_mixin, declared_attr
 from sqlalchemy.sql import func
 from datetime import datetime
 import uuid
@@ -17,6 +17,19 @@ def generate_uuid():
     return str(uuid.uuid4())
 
 
+@declarative_mixin
+class TimestampMixin:
+    """Mixin for created_at and updated_at timestamp fields."""
+    
+    @declared_attr
+    def created_at(cls):
+        return Column(DateTime, default=func.now(), nullable=False)
+    
+    @declared_attr
+    def updated_at(cls):
+        return Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
+
+
 class JobStatus(str, enum.Enum):
     """Job status enumeration."""
     PENDING = "pending"
@@ -25,7 +38,7 @@ class JobStatus(str, enum.Enum):
     FAILED = "failed"
 
 
-class User(Base):
+class User(Base, TimestampMixin):
     """User model for authentication."""
     __tablename__ = "users"
 
@@ -36,8 +49,6 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     comparison_count = Column(Integer, default=0)
     profile_image = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=func.now())
-    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 
     # Relationships
     comparisons = relationship("Comparison", back_populates="user", cascade="all, delete-orphan")
@@ -48,7 +59,7 @@ class User(Base):
         return f"<User {self.email}>"
 
 
-class Comparison(Base):
+class Comparison(Base, TimestampMixin):
     """Comparison job model."""
     __tablename__ = "comparisons"
 
@@ -63,7 +74,7 @@ class Comparison(Base):
     viewport_width = Column(Integer, default=1920)
     viewport_height = Column(Integer, default=1080)
     viewport_name = Column(String(50), default="desktop")
-    comparison_mode = Column(String(20), default="single")  # single or responsive
+    comparison_mode = Column(String(20), default="single")
     
     # Results
     match_score = Column(Float, default=0.0)
@@ -83,7 +94,6 @@ class Comparison(Base):
     # Metadata
     project_name = Column(String(255), nullable=True)
     tags = Column(JSON, nullable=True)
-    created_at = Column(DateTime, default=func.now())
     completed_at = Column(DateTime, nullable=True)
 
     # Relationships
@@ -94,7 +104,7 @@ class Comparison(Base):
         return f"<Comparison {self.job_id}>"
 
 
-class ViewportResult(Base):
+class ViewportResult(Base, TimestampMixin):
     """Viewport-specific results for responsive comparisons."""
     __tablename__ = "viewport_results"
 
@@ -112,8 +122,6 @@ class ViewportResult(Base):
     website_screenshot_url = Column(Text, nullable=True)
     visual_diff_url = Column(Text, nullable=True)
     report_json = Column(JSON, nullable=True)
-    
-    created_at = Column(DateTime, default=func.now())
 
     # Relationships
     comparison = relationship("Comparison", back_populates="viewport_results")
@@ -122,7 +130,7 @@ class ViewportResult(Base):
         return f"<ViewportResult {self.viewport_name} for {self.comparison_id}>"
 
 
-class Job(Base):
+class Job(Base, TimestampMixin):
     """Job progress and result storage (replaces Redis)."""
     __tablename__ = "jobs"
 
@@ -138,16 +146,13 @@ class Job(Base):
     # Result storage
     result_json = Column(JSON, nullable=True)
     error_message = Column(Text, nullable=True)
-    
-    created_at = Column(DateTime, default=func.now())
-    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
     expires_at = Column(DateTime, nullable=True)
 
     def __repr__(self):
         return f"<Job {self.id} - {self.status}>"
 
 
-class OTPToken(Base):
+class OTPToken(Base, TimestampMixin):
     """OTP tokens for email verification."""
     __tablename__ = "otp_tokens"
 
@@ -155,9 +160,7 @@ class OTPToken(Base):
     user_id = Column(String(36), ForeignKey("users.id"), nullable=True)
     email = Column(String(255), nullable=False, index=True)
     otp_code = Column(String(10), nullable=False)
-    user_data = Column(JSON, nullable=True)  # Temporary user data during signup
-    
-    created_at = Column(DateTime, default=func.now())
+    user_data = Column(JSON, nullable=True)
     expires_at = Column(DateTime, nullable=False)
     used = Column(Boolean, default=False)
 
@@ -172,7 +175,7 @@ class OTPToken(Base):
         return datetime.now() > self.expires_at
 
 
-class ResetToken(Base):
+class ResetToken(Base, TimestampMixin):
     """Password reset tokens."""
     __tablename__ = "reset_tokens"
 
@@ -180,8 +183,6 @@ class ResetToken(Base):
     user_id = Column(String(36), ForeignKey("users.id"), nullable=False)
     email = Column(String(255), nullable=False, index=True)
     token = Column(String(64), nullable=False, unique=True, index=True)
-    
-    created_at = Column(DateTime, default=func.now())
     expires_at = Column(DateTime, nullable=False)
     used = Column(Boolean, default=False)
 

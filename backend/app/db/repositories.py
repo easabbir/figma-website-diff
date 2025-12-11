@@ -7,46 +7,33 @@ from datetime import datetime, timedelta
 import json
 import logging
 
-from .models import User, Comparison, ViewportResult, Job, OTPToken, ResetToken
+from app.core.base_repository import BaseRepository
+from app.db.models import User, Comparison, ViewportResult, Job, OTPToken, ResetToken
 
 logger = logging.getLogger(__name__)
 
 
-class UserRepository:
+class UserRepository(BaseRepository[User]):
     """Repository for User operations."""
 
     def __init__(self, db: Session):
-        self.db = db
+        super().__init__(User, db)
 
-    def create(self, email: str, password_hash: str, full_name: Optional[str] = None) -> User:
+    def create_user(self, email: str, password_hash: str, full_name: Optional[str] = None) -> User:
         """Create a new user."""
-        user = User(
+        return self.create(
             email=email.lower(),
             password_hash=password_hash,
             full_name=full_name
         )
-        self.db.add(user)
-        self.db.commit()
-        self.db.refresh(user)
-        return user
-
-    def get_by_id(self, user_id: str) -> Optional[User]:
-        """Get user by ID."""
-        return self.db.query(User).filter(User.id == user_id).first()
 
     def get_by_email(self, email: str) -> Optional[User]:
         """Get user by email."""
         return self.db.query(User).filter(User.email == email.lower()).first()
 
-    def update(self, user: User, **kwargs) -> User:
+    def update_user(self, user: User, **kwargs) -> User:
         """Update user fields."""
-        for key, value in kwargs.items():
-            if hasattr(user, key):
-                setattr(user, key, value)
-        user.updated_at = datetime.now()
-        self.db.commit()
-        self.db.refresh(user)
-        return user
+        return self.update(user, **kwargs)
 
     def increment_comparison_count(self, user_id: str) -> int:
         """Increment user's comparison count and return new count."""
@@ -57,34 +44,21 @@ class UserRepository:
             return user.comparison_count
         return 0
 
-    def delete(self, user: User):
-        """Delete a user."""
-        self.db.delete(user)
-        self.db.commit()
 
-
-class ComparisonRepository:
+class ComparisonRepository(BaseRepository[Comparison]):
     """Repository for Comparison operations."""
 
     def __init__(self, db: Session):
-        self.db = db
+        super().__init__(Comparison, db)
 
-    def create(self, job_id: str, website_url: str, user_id: Optional[str] = None, **kwargs) -> Comparison:
+    def create_comparison(self, job_id: str, website_url: str, user_id: Optional[str] = None, **kwargs) -> Comparison:
         """Create a new comparison."""
-        comparison = Comparison(
+        return self.create(
             job_id=job_id,
             website_url=website_url,
             user_id=user_id,
             **kwargs
         )
-        self.db.add(comparison)
-        self.db.commit()
-        self.db.refresh(comparison)
-        return comparison
-
-    def get_by_id(self, comparison_id: str) -> Optional[Comparison]:
-        """Get comparison by ID."""
-        return self.db.query(Comparison).filter(Comparison.id == comparison_id).first()
 
     def get_by_job_id(self, job_id: str) -> Optional[Comparison]:
         """Get comparison by job ID."""
@@ -105,15 +79,6 @@ class ComparisonRepository:
         """Get total comparison count for a user."""
         return self.db.query(Comparison).filter(Comparison.user_id == user_id).count()
 
-    def update(self, comparison: Comparison, **kwargs) -> Comparison:
-        """Update comparison fields."""
-        for key, value in kwargs.items():
-            if hasattr(comparison, key):
-                setattr(comparison, key, value)
-        self.db.commit()
-        self.db.refresh(comparison)
-        return comparison
-
     def update_results(self, job_id: str, **kwargs) -> Optional[Comparison]:
         """Update comparison results by job ID."""
         comparison = self.get_by_job_id(job_id)
@@ -121,72 +86,58 @@ class ComparisonRepository:
             return self.update(comparison, **kwargs)
         return None
 
-    def delete(self, comparison: Comparison):
-        """Delete a comparison."""
-        self.db.delete(comparison)
-        self.db.commit()
-
     def delete_by_job_id(self, job_id: str) -> bool:
         """Delete comparison by job ID."""
         comparison = self.get_by_job_id(job_id)
         if comparison:
-            self.delete(comparison)
-            return True
+            return self.delete(comparison)
         return False
 
 
-class ViewportResultRepository:
+class ViewportResultRepository(BaseRepository[ViewportResult]):
     """Repository for ViewportResult operations."""
 
     def __init__(self, db: Session):
-        self.db = db
+        super().__init__(ViewportResult, db)
 
-    def create(self, comparison_id: str, viewport_name: str, viewport_width: int, viewport_height: int, **kwargs) -> ViewportResult:
+    def create_viewport_result(self, comparison_id: str, viewport_name: str, viewport_width: int, viewport_height: int, **kwargs) -> ViewportResult:
         """Create a new viewport result."""
-        result = ViewportResult(
+        return self.create(
             comparison_id=comparison_id,
             viewport_name=viewport_name,
             viewport_width=viewport_width,
             viewport_height=viewport_height,
             **kwargs
         )
-        self.db.add(result)
-        self.db.commit()
-        self.db.refresh(result)
-        return result
 
     def get_by_comparison(self, comparison_id: str) -> List[ViewportResult]:
         """Get all viewport results for a comparison."""
         return self.db.query(ViewportResult).filter(ViewportResult.comparison_id == comparison_id).all()
 
 
-class JobRepository:
+class JobRepository(BaseRepository[Job]):
     """Repository for Job progress and results (replaces Redis)."""
 
     def __init__(self, db: Session):
-        self.db = db
+        super().__init__(Job, db)
 
-    def create(self, job_id: str, expires_hours: int = 24) -> Job:
+    def create_job(self, job_id: str, expires_hours: int = 24) -> Job:
         """Create a new job."""
-        job = Job(
+        return self.create(
             id=job_id,
             status="pending",
             expires_at=datetime.now() + timedelta(hours=expires_hours)
         )
-        self.db.add(job)
-        self.db.commit()
-        self.db.refresh(job)
-        return job
 
     def get(self, job_id: str) -> Optional[Job]:
         """Get job by ID."""
-        return self.db.query(Job).filter(Job.id == job_id).first()
+        return self.get_by_id(job_id)
 
     def get_or_create(self, job_id: str) -> Job:
         """Get existing job or create new one."""
         job = self.get(job_id)
         if not job:
-            job = self.create(job_id)
+            job = self.create_job(job_id)
         return job
 
     def update_progress(self, job_id: str, percent: int, step: str = None, message: str = None, details: Dict = None) -> Optional[Job]:
@@ -243,14 +194,9 @@ class JobRepository:
             return job.result_json
         return None
 
-    def delete(self, job_id: str) -> bool:
+    def delete_job(self, job_id: str) -> bool:
         """Delete a job."""
-        job = self.get(job_id)
-        if job:
-            self.db.delete(job)
-            self.db.commit()
-            return True
-        return False
+        return self.delete_by_id(job_id)
 
     def cleanup_expired(self) -> int:
         """Delete expired jobs. Returns count of deleted jobs."""
@@ -275,27 +221,21 @@ class JobRepository:
         ]
 
 
-class OTPTokenRepository:
+class OTPTokenRepository(BaseRepository[OTPToken]):
     """Repository for OTP token operations."""
 
     def __init__(self, db: Session):
-        self.db = db
+        super().__init__(OTPToken, db)
 
-    def create(self, email: str, otp_code: str, user_data: Dict = None, expiry_minutes: int = 10) -> OTPToken:
+    def create_token(self, email: str, otp_code: str, user_data: Dict = None, expiry_minutes: int = 10) -> OTPToken:
         """Create a new OTP token."""
-        # Delete any existing OTP for this email
         self.delete_by_email(email)
-        
-        token = OTPToken(
+        return self.create(
             email=email.lower(),
             otp_code=otp_code,
             user_data=user_data,
             expires_at=datetime.now() + timedelta(minutes=expiry_minutes)
         )
-        self.db.add(token)
-        self.db.commit()
-        self.db.refresh(token)
-        return token
 
     def get_by_email(self, email: str) -> Optional[OTPToken]:
         """Get OTP token by email."""
@@ -333,27 +273,21 @@ class OTPTokenRepository:
         self.db.commit()
 
 
-class ResetTokenRepository:
+class ResetTokenRepository(BaseRepository[ResetToken]):
     """Repository for password reset token operations."""
 
     def __init__(self, db: Session):
-        self.db = db
+        super().__init__(ResetToken, db)
 
-    def create(self, user_id: str, email: str, token: str, expiry_minutes: int = 30) -> ResetToken:
+    def create_token(self, user_id: str, email: str, token: str, expiry_minutes: int = 30) -> ResetToken:
         """Create a new reset token."""
-        # Delete any existing tokens for this email
         self.delete_by_email(email)
-        
-        reset_token = ResetToken(
+        return self.create(
             user_id=user_id,
             email=email.lower(),
             token=token,
             expires_at=datetime.now() + timedelta(minutes=expiry_minutes)
         )
-        self.db.add(reset_token)
-        self.db.commit()
-        self.db.refresh(reset_token)
-        return reset_token
 
     def get_by_token(self, token: str) -> Optional[ResetToken]:
         """Get reset token by token string."""

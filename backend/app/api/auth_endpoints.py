@@ -3,7 +3,7 @@
 from fastapi import APIRouter, HTTPException, status, Depends
 from datetime import timedelta
 
-from ..models.user import (
+from app.models.user import (
     UserCreate, 
     UserLogin, 
     UserResponse, 
@@ -17,7 +17,7 @@ from ..models.user import (
     ForgotPasswordRequest,
     ResetPasswordRequest
 )
-from ..services.auth import (
+from app.services.auth import (
     register_user,
     authenticate_user,
     create_access_token,
@@ -26,7 +26,7 @@ from ..services.auth import (
     verify_password,
     get_password_hash
 )
-from ..services.email_service import (
+from app.services.email_service import (
     send_verification_otp,
     verify_and_get_user_data,
     resend_otp,
@@ -34,7 +34,7 @@ from ..services.email_service import (
     verify_reset_token,
     invalidate_reset_token
 )
-from ..services.user_service import user_db
+from app.services.user_service import user_db
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 

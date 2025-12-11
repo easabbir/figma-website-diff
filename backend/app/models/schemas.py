@@ -217,3 +217,61 @@ class HistoryStats(BaseModel):
     avg_match_score: float = 0.0
     total_differences_found: int = 0
     unique_websites: int = 0
+
+
+class HealthCheckResponse(BaseModel):
+    """Health check response."""
+    status: str
+    service: str
+    version: str
+
+
+class JobListItem(BaseModel):
+    """Job list item."""
+    status: str
+    progress: int
+    message: str
+
+
+class JobListResponse(BaseModel):
+    """Job list response."""
+    jobs: Dict[str, JobListItem]
+    storage_stats: Dict[str, Any]
+
+
+class DeleteResponse(BaseModel):
+    """Generic delete response."""
+    message: str
+
+
+class OAuthStatusResponse(BaseModel):
+    """OAuth status response."""
+    configured: bool
+    authenticated: bool
+    message: str
+
+
+class OAuthAuthorizationResponse(BaseModel):
+    """OAuth authorization response."""
+    authorization_url: str
+    state: str
+    message: str
+
+
+class OAuthTokenResponse(BaseModel):
+    """OAuth token response."""
+    access_token: str
+    token_type: str
+
+
+class OAuthRefreshResponse(BaseModel):
+    """OAuth refresh response."""
+    success: bool
+    expires_at: Optional[str]
+    message: str
+
+
+class OAuthLogoutResponse(BaseModel):
+    """OAuth logout response."""
+    success: bool
+    message: str
