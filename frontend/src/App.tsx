@@ -45,7 +45,8 @@ function MainApp() {
     const email = params.get('email')
     const token = params.get('token')
     
-    if (email && token && window.location.pathname === '/reset-password') {
+    // Check if we have reset params (works with any path or query-only URL)
+    if (email && token) {
       setResetEmail(email)
       setResetToken(token)
       setAuthView('reset-password')

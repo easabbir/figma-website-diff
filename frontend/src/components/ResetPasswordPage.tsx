@@ -22,19 +22,27 @@ export default function ResetPasswordPage({ email, token, onBack, onSuccess }: R
 
   // Verify token on mount
   useEffect(() => {
+    let isMounted = true
+    
     const verifyToken = async () => {
       try {
         await axios.post('/api/v1/auth/verify-reset-token', {
           email,
           token,
-          new_password: 'dummy' // Required by schema but not used for verification
+          new_password: 'dummy123' // Required by schema but not used for verification
         })
-        setIsValidToken(true)
+        if (isMounted) {
+          setIsValidToken(true)
+        }
       } catch (error) {
-        setIsValidToken(false)
-        toast.error('Invalid or expired reset link')
+        if (isMounted) {
+          setIsValidToken(false)
+          toast.error('Invalid or expired reset link', { toastId: 'reset-token-invalid' })
+        }
       } finally {
-        setIsVerifying(false)
+        if (isMounted) {
+          setIsVerifying(false)
+        }
       }
     }
 
@@ -43,6 +51,10 @@ export default function ResetPasswordPage({ email, token, onBack, onSuccess }: R
     } else {
       setIsVerifying(false)
       setIsValidToken(false)
+    }
+    
+    return () => {
+      isMounted = false
     }
   }, [email, token])
 

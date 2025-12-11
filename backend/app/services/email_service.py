@@ -422,9 +422,15 @@ The Pixel Perfect UI Team
                             
                             <!-- Reset Button -->
                             <div style="text-align: center; margin: 32px 0;">
-                                <a href="{reset_url}" style="display: inline-block; background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%); color: #ffffff; text-decoration: none; padding: 16px 32px; border-radius: 12px; font-size: 16px; font-weight: 600; box-shadow: 0 4px 14px rgba(124, 58, 237, 0.4);">
-                                    👉 Reset Password
-                                </a>
+                                <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto;">
+                                    <tr>
+                                        <td style="background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%); border-radius: 12px; box-shadow: 0 4px 14px rgba(124, 58, 237, 0.4);">
+                                            <a href="{reset_url}" target="_blank" style="display: inline-block; color: #ffffff; text-decoration: none; padding: 16px 32px; font-size: 16px; font-weight: 600; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+                                                &#x1F449; Reset Password
+                                            </a>
+                                        </td>
+                                    </tr>
+                                </table>
                             </div>
                             
                             <!-- Link fallback -->
