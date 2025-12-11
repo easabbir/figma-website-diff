@@ -1,1 +1,22 @@
 backend/data/oauth_tokens.json
+
+# Environment variables
+.env
+.env.local
+.env.production
+
+# Logs
+*.log
+logs/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+
+# Docker volumes
+postgres-data/
+backend-outputs/
