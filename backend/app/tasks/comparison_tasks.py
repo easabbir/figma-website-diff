@@ -11,7 +11,8 @@ from app.services.web_analyzer import analyze_website_async
 from app.services.comparator import UIComparator
 from app.services.report_generator import ReportGenerator
 from app.services.job_storage import job_storage
-from app.models.database import history_db, user_db
+from app.models.database import history_db
+from app.services.user_service import user_db
 from app.config import get_settings
 
 logger = logging.getLogger(__name__)
@@ -36,11 +37,13 @@ async def process_comparison_job(
         user_id: User ID for privacy
     """
     try:
+        import asyncio
+        
         job_storage.set_progress(job_id, ProgressUpdate(
             job_id=job_id,
             status="processing",
-            progress=10,
-            message="Starting comparison...",
+            progress=5,
+            message="Step 1 of 4: Initializing comparison...",
             current_step="initialization"
         ))
         
@@ -57,9 +60,11 @@ async def process_comparison_job(
             user_id=user_id
         )
         
+        await asyncio.sleep(1)  # Allow user to read the message
+        
         job_storage.set_progress(job_id, ProgressUpdate(
-            job_id=job_id, status="processing", progress=20,
-            message="Extracting Figma design data...", current_step="figma_extraction"
+            job_id=job_id, status="processing", progress=15,
+            message="Step 1 of 4: Extracting Figma design data...", current_step="figma_extraction"
         ))
         
         figma_extractor = FigmaExtractor()
@@ -78,9 +83,11 @@ async def process_comparison_job(
                 detail="Only 'url' input type is currently supported"
             )
         
+        await asyncio.sleep(1)  # Allow user to read the message
+        
         job_storage.set_progress(job_id, ProgressUpdate(
-            job_id=job_id, status="processing", progress=50,
-            message="Analyzing website...", current_step="website_analysis"
+            job_id=job_id, status="processing", progress=40,
+            message="Step 2 of 4: Capturing website screenshot...", current_step="website_capture"
         ))
         
         viewport = options.get("viewport", {})
@@ -91,9 +98,11 @@ async def process_comparison_job(
             timeout=settings.PLAYWRIGHT_TIMEOUT
         )
         
+        await asyncio.sleep(1)  # Allow user to read the message
+        
         job_storage.set_progress(job_id, ProgressUpdate(
-            job_id=job_id, status="processing", progress=75,
-            message="Comparing designs...", current_step="comparison"
+            job_id=job_id, status="processing", progress=65,
+            message="Step 3 of 4: Performing visual comparison...", current_step="visual_comparison"
         ))
         
         comparator = UIComparator(
@@ -104,9 +113,11 @@ async def process_comparison_job(
         
         report = comparator.compare(figma_data, website_data, output_dir, job_id)
         
+        await asyncio.sleep(1)  # Allow user to read the message
+        
         job_storage.set_progress(job_id, ProgressUpdate(
-            job_id=job_id, status="processing", progress=90,
-            message="Generating reports...", current_step="report_generation"
+            job_id=job_id, status="processing", progress=85,
+            message="Step 4 of 4: Generating reports...", current_step="report_generation"
         ))
         
         report_generator = ReportGenerator()
