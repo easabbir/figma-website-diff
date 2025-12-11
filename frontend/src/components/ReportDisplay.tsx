@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { ArrowLeft, Download, CheckCircle, AlertCircle, Info, Loader2, FileText, ImageOff, Layers, Sparkles } from 'lucide-react'
+import { ArrowLeft, Download, CheckCircle, AlertCircle, Info, Loader2, FileText, ImageOff, Layers, Sparkles, SplitSquareHorizontal } from 'lucide-react'
 import axios from 'axios'
 import { toast } from 'react-toastify'
 import {
@@ -42,7 +42,10 @@ export default function ReportDisplay({ jobId, onBack, fromHistory = false }: Re
   const [currentStep, setCurrentStep] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [viewMode, setViewMode] = useState<'slider' | 'sideBySide' | 'overlay' | 'difference'>('slider')
+  const [viewMode, setViewMode] = useState<'slider' | 'sideBySide' | 'overlay' | 'difference' | 'split'>('slider')
+  const [splitPosition, setSplitPosition] = useState(50)
+  const splitContainerRef = useRef<HTMLDivElement>(null)
+  const [isDragging, setIsDragging] = useState(false)
   const [overlayOpacity, setOverlayOpacity] = useState(50)
   const [diffLoading, setDiffLoading] = useState(false)
   const [diffThreshold, setDiffThreshold] = useState(30)
@@ -581,6 +584,17 @@ export default function ReportDisplay({ jobId, onBack, fromHistory = false }: Re
                   <Sparkles className="w-3.5 h-3.5" />
                   Difference
                 </button>
+                <button
+                  onClick={() => setViewMode('split')}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all flex items-center gap-1 ${
+                    viewMode === 'split' 
+                      ? 'bg-white text-gray-900 shadow-sm' 
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  <SplitSquareHorizontal className="w-3.5 h-3.5" />
+                  Split
+                </button>
               </div>
             )}
           </div>
@@ -725,6 +739,100 @@ export default function ReportDisplay({ jobId, onBack, fromHistory = false }: Re
                   <div className="w-3 h-3 rounded-full bg-gray-400"></div>
                   <span>Matching Areas (Gray)</span>
                 </div>
+              </div>
+            </>
+          ) : report.figma_screenshot_url && report.website_screenshot_url && !figmaImageError && !websiteImageError && viewMode === 'split' ? (
+            /* Split View with draggable divider */
+            <>
+              {/* Instructions */}
+              <div className="mb-4 p-3 bg-gray-50 rounded-lg text-center">
+                <p className="text-sm text-gray-600">
+                  <span className="font-medium">Drag the divider</span> or use the slider below to compare specific areas
+                </p>
+              </div>
+              
+              {/* Split Position Slider */}
+              <div className="mb-4 px-4">
+                <div className="flex items-center gap-4">
+                  <span className="text-xs text-purple-600 font-medium whitespace-nowrap">Figma</span>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={splitPosition}
+                    onChange={(e) => setSplitPosition(Number(e.target.value))}
+                    className="w-full h-2 bg-gradient-to-r from-purple-500 to-emerald-500 rounded-lg appearance-none cursor-pointer slider-thumb"
+                  />
+                  <span className="text-xs text-emerald-600 font-medium whitespace-nowrap">Website</span>
+                </div>
+              </div>
+              
+              {/* Split Container */}
+              <div 
+                ref={splitContainerRef}
+                className="rounded-lg overflow-hidden border-2 border-gray-200 relative select-none"
+                onMouseDown={() => setIsDragging(true)}
+                onMouseUp={() => setIsDragging(false)}
+                onMouseLeave={() => setIsDragging(false)}
+                onMouseMove={(e) => {
+                  if (isDragging && splitContainerRef.current) {
+                    const rect = splitContainerRef.current.getBoundingClientRect()
+                    const x = e.clientX - rect.left
+                    const percentage = Math.max(0, Math.min(100, (x / rect.width) * 100))
+                    setSplitPosition(percentage)
+                  }
+                }}
+              >
+                {/* Figma Image (Left side) */}
+                <div 
+                  className="absolute top-0 left-0 h-full overflow-hidden"
+                  style={{ width: `${splitPosition}%` }}
+                >
+                  <img
+                    src={report.figma_screenshot_url}
+                    alt="Figma Design"
+                    className="h-full object-cover object-left"
+                    style={{ width: `${100 / (splitPosition / 100)}%`, maxWidth: 'none' }}
+                    onError={() => setFigmaImageError(true)}
+                    draggable={false}
+                  />
+                </div>
+                
+                {/* Website Image (Full width, behind) */}
+                <img
+                  src={report.website_screenshot_url}
+                  alt="Website"
+                  className="w-full h-auto"
+                  onError={() => setWebsiteImageError(true)}
+                  draggable={false}
+                />
+                
+                {/* Divider Line */}
+                <div 
+                  className="absolute top-0 bottom-0 w-1 bg-white shadow-lg cursor-ew-resize z-10"
+                  style={{ left: `${splitPosition}%`, transform: 'translateX(-50%)' }}
+                >
+                  {/* Divider Handle */}
+                  <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-8 h-8 bg-white rounded-full shadow-lg flex items-center justify-center border-2 border-gray-300">
+                    <div className="flex gap-0.5">
+                      <div className="w-0.5 h-4 bg-gray-400 rounded"></div>
+                      <div className="w-0.5 h-4 bg-gray-400 rounded"></div>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Labels */}
+                <div className="absolute top-2 left-2 bg-purple-600 text-white text-xs px-2 py-1 rounded shadow">
+                  Figma
+                </div>
+                <div className="absolute top-2 right-2 bg-emerald-600 text-white text-xs px-2 py-1 rounded shadow">
+                  Website
+                </div>
+              </div>
+              
+              {/* Position indicator */}
+              <div className="flex justify-center text-sm text-gray-500 mt-2">
+                <span>Split: {Math.round(splitPosition)}% Figma / {Math.round(100 - splitPosition)}% Website</span>
               </div>
             </>
           ) : viewMode === 'sideBySide' || figmaImageError || websiteImageError ? (
