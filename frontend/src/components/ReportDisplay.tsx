@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { ArrowLeft, Download, CheckCircle, AlertCircle, Info, Loader2, FileText, ImageOff } from 'lucide-react'
+import { ArrowLeft, Download, CheckCircle, AlertCircle, Info, Loader2, FileText, ImageOff, Layers } from 'lucide-react'
 import axios from 'axios'
 import { toast } from 'react-toastify'
 import {
@@ -42,7 +42,8 @@ export default function ReportDisplay({ jobId, onBack, fromHistory = false }: Re
   const [currentStep, setCurrentStep] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [viewMode, setViewMode] = useState<'slider' | 'sideBySide'>('slider')
+  const [viewMode, setViewMode] = useState<'slider' | 'sideBySide' | 'overlay'>('slider')
+  const [overlayOpacity, setOverlayOpacity] = useState(50)
   const [figmaImageError, setFigmaImageError] = useState(false)
   const [websiteImageError, setWebsiteImageError] = useState(false)
   const [toastShown, setToastShown] = useState(false)
@@ -451,6 +452,17 @@ export default function ReportDisplay({ jobId, onBack, fromHistory = false }: Re
                 >
                   Side by Side
                 </button>
+                <button
+                  onClick={() => setViewMode('overlay')}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all flex items-center gap-1 ${
+                    viewMode === 'overlay' 
+                      ? 'bg-white text-gray-900 shadow-sm' 
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  <Layers className="w-3.5 h-3.5" />
+                  Overlay
+                </button>
               </div>
             )}
           </div>
@@ -487,7 +499,64 @@ export default function ReportDisplay({ jobId, onBack, fromHistory = false }: Re
                 <span>Website →</span>
               </div>
             </>
-          ) : (
+          ) : report.figma_screenshot_url && report.website_screenshot_url && !figmaImageError && !websiteImageError && viewMode === 'overlay' ? (
+            /* Overlay/Blend View */
+            <>
+              {/* Opacity Slider Control */}
+              <div className="mb-4 p-4 bg-gray-50 rounded-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-gray-700">Blend Opacity</span>
+                  <span className="text-sm text-gray-500">{overlayOpacity}%</span>
+                </div>
+                <div className="flex items-center gap-4">
+                  <span className="text-xs text-purple-600 font-medium whitespace-nowrap">Figma</span>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={overlayOpacity}
+                    onChange={(e) => setOverlayOpacity(Number(e.target.value))}
+                    className="w-full h-2 bg-gradient-to-r from-purple-500 to-emerald-500 rounded-lg appearance-none cursor-pointer slider-thumb"
+                  />
+                  <span className="text-xs text-emerald-600 font-medium whitespace-nowrap">Website</span>
+                </div>
+                <p className="text-xs text-gray-400 mt-2 text-center">
+                  Drag the slider to blend between Figma design and website screenshot
+                </p>
+              </div>
+              
+              {/* Overlay Container */}
+              <div className="rounded-lg overflow-hidden border-2 border-gray-200 relative">
+                {/* Base Layer - Figma Design */}
+                <img
+                  src={report.figma_screenshot_url}
+                  alt="Figma Design"
+                  className="w-full h-auto"
+                  onError={() => setFigmaImageError(true)}
+                />
+                {/* Overlay Layer - Website */}
+                <img
+                  src={report.website_screenshot_url}
+                  alt="Website"
+                  className="absolute top-0 left-0 w-full h-full object-cover object-top"
+                  style={{ opacity: overlayOpacity / 100 }}
+                  onError={() => setWebsiteImageError(true)}
+                />
+              </div>
+              
+              {/* Legend */}
+              <div className="flex justify-center gap-6 text-sm text-gray-600 mt-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-purple-500"></div>
+                  <span>Figma Design (Base)</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-emerald-500"></div>
+                  <span>Website (Overlay)</span>
+                </div>
+              </div>
+            </>
+          ) : viewMode === 'sideBySide' || figmaImageError || websiteImageError ? (
             /* Show side-by-side view */
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="rounded-lg overflow-hidden border-2 border-gray-200">
@@ -531,7 +600,7 @@ export default function ReportDisplay({ jobId, onBack, fromHistory = false }: Re
                 )}
               </div>
             </div>
-          )}
+          ) : null}
         </div>
       )}
 
