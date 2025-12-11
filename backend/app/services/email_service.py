@@ -111,61 +111,62 @@ Best regards,
 The Pixel Perfect UI Team
         """
         
-        # HTML version with clean, professional styling
+        # HTML version with refined professional styling matching the design pattern
         html_content = f"""
 <!DOCTYPE html>
 <html>
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Your OTP Code - Pixel Perfect UI</title>
+    <title>Your verification code: {otp} - Pixel Perfect UI</title>
 </head>
-<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f8f9fa; line-height: 1.6;">
-    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f8f9fa; padding: 40px 20px;">
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f5f5f5; line-height: 1.5;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f5f5f5; padding: 40px 20px;">
         <tr>
             <td align="center">
-                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width: 600px; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); overflow: hidden;">
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width: 500px; background-color: #ffffff; border-radius: 12px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); overflow: hidden;">
+                    
+                    <!-- Header -->
+                    <tr>
+                        <td style="background: linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%); padding: 32px 40px; text-align: center;">
+                            <h1 style="margin: 0; color: #ffffff; font-size: 20px; font-weight: 600; letter-spacing: 0.5px;">Pixel Perfect UI</h1>
+                            <p style="margin: 8px 0 0 0; color: rgba(255,255,255,0.9); font-size: 14px; font-weight: 400;">Email Verification</p>
+                        </td>
+                    </tr>
                     
                     <!-- Content -->
                     <tr>
-                        <td style="padding: 48px 40px;">
-                            <div style="text-align: center; margin-bottom: 32px;">
-                                <div style="display: inline-block; width: 64px; height: 64px; background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%); border-radius: 16px; margin-bottom: 16px; position: relative;">
-                                    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-size: 24px; font-weight: bold;">🔐</div>
-                                </div>
-                                <h1 style="margin: 0; color: #1f2937; font-size: 24px; font-weight: 600;">Pixel Perfect UI</h1>
-                            </div>
-                            
-                            <div style="text-align: left; margin-bottom: 32px;">
-                                <p style="margin: 0 0 16px 0; color: #374151; font-size: 16px;">
+                        <td style="padding: 40px;">
+                            <div style="text-align: left; margin-bottom: 24px;">
+                                <p style="margin: 0 0 12px 0; color: #374151; font-size: 16px; font-weight: 400;">
                                     {greeting}
                                 </p>
-                                <p style="margin: 0 0 24px 0; color: #6b7280; font-size: 16px;">
+                                <p style="margin: 0; color: #6b7280; font-size: 15px; line-height: 1.6;">
                                     Your One-Time Password (OTP) for Pixel Perfect UI is:
                                 </p>
                             </div>
                             
                             <!-- OTP Code Box -->
-                            <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 24px; text-align: center; margin: 32px 0;">
-                                <p style="margin: 0 0 8px 0; color: #64748b; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; font-weight: 500;">🔐 YOUR OTP CODE</p>
-                                <p style="margin: 0; color: #7c3aed; font-size: 32px; font-weight: 700; letter-spacing: 4px; font-family: 'Courier New', monospace;">{otp}</p>
+                            <div style="background: linear-gradient(135deg, #f3e8ff 0%, #ede9fe 100%); border: 1px solid #d8b4fe; border-radius: 8px; padding: 20px; text-align: center; margin: 24px 0;">
+                                <p style="margin: 0 0 6px 0; color: #7c3aed; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">🔐 YOUR OTP CODE</p>
+                                <p style="margin: 0; color: #7c3aed; font-size: 28px; font-weight: 700; letter-spacing: 3px; font-family: 'Courier New', monospace;">{otp}</p>
                             </div>
                             
-                            <div style="text-align: center; margin: 32px 0;">
-                                <p style="margin: 0 0 8px 0; color: #374151; font-size: 14px;">
+                            <div style="text-align: center; margin: 24px 0;">
+                                <p style="margin: 0 0 4px 0; color: #374151; font-size: 14px; line-height: 1.5;">
                                     This code will remain valid for <strong>{OTP_EXPIRY_MINUTES} minutes</strong>.
                                 </p>
-                                <p style="margin: 0; color: #6b7280; font-size: 14px;">
+                                <p style="margin: 0; color: #6b7280; font-size: 14px; line-height: 1.5;">
                                     Please enter it in the app to complete your verification.
                                 </p>
                             </div>
                             
-                            <div style="border-top: 1px solid #e5e7eb; padding-top: 24px; margin-top: 32px;">
-                                <p style="margin: 0 0 16px 0; color: #6b7280; font-size: 13px;">
+                            <div style="border-top: 1px solid #e5e7eb; padding-top: 20px; margin-top: 28px;">
+                                <p style="margin: 0 0 12px 0; color: #6b7280; font-size: 13px; line-height: 1.5;">
                                     If you did not request this code, please ignore this email or contact our support team immediately.
                                 </p>
                                 
-                                <p style="margin: 0; color: #374151; font-size: 14px;">
+                                <p style="margin: 0; color: #374151; font-size: 14px; line-height: 1.5;">
                                     Best regards,<br>
                                     <strong>The Pixel Perfect UI Team</strong>
                                 </p>
@@ -175,8 +176,8 @@ The Pixel Perfect UI Team
                     
                     <!-- Footer -->
                     <tr>
-                        <td style="background-color: #f8f9fa; padding: 24px 40px; text-align: center; border-top: 1px solid #e5e7eb;">
-                            <p style="margin: 0; color: #9ca3af; font-size: 12px;">
+                        <td style="background-color: #f9fafb; padding: 20px 40px; text-align: center; border-top: 1px solid #e5e7eb;">
+                            <p style="margin: 0; color: #9ca3af; font-size: 11px; line-height: 1.4;">
                                 © 2025 Pixel Perfect UI. All rights reserved.
                             </p>
                         </td>
