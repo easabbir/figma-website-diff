@@ -111,74 +111,88 @@ Best regards,
 The Pixel Perfect UI Team
         """
         
-        # HTML version with refined professional styling matching the design pattern
+        # HTML version with Outlook-compatible styling (no CSS gradients)
         html_content = f"""
-<!DOCTYPE html>
-<html>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Your verification code: {otp} - Pixel Perfect UI</title>
+    <!--[if mso]>
+    <style type="text/css">
+        body, table, td {{font-family: Arial, Helvetica, sans-serif !important;}}
+    </style>
+    <![endif]-->
 </head>
-<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f5f5f5; line-height: 1.5;">
-    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f5f5f5; padding: 40px 20px;">
+<body style="margin: 0; padding: 0; background-color: #f5f5f5; font-family: Arial, Helvetica, sans-serif;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: #f5f5f5;">
         <tr>
-            <td align="center">
-                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width: 500px; background-color: #ffffff; border-radius: 12px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); overflow: hidden;">
+            <td align="center" style="padding: 40px 20px;">
+                <table role="presentation" width="500" cellspacing="0" cellpadding="0" border="0" style="max-width: 500px; background-color: #ffffff;">
                     
                     <!-- Header -->
                     <tr>
-                        <td style="background: linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%); padding: 32px 40px; text-align: center;">
-                            <h1 style="margin: 0; color: #ffffff; font-size: 20px; font-weight: 600; letter-spacing: 0.5px;">Pixel Perfect UI</h1>
-                            <p style="margin: 8px 0 0 0; color: rgba(255,255,255,0.9); font-size: 14px; font-weight: 400;">Email Verification</p>
+                        <td align="center" bgcolor="#8b5cf6" style="background-color: #8b5cf6; padding: 32px 40px;">
+                            <h1 style="margin: 0; color: #ffffff; font-size: 20px; font-weight: bold; font-family: Arial, Helvetica, sans-serif;">Pixel Perfect UI</h1>
+                            <p style="margin: 8px 0 0 0; color: #e9d5ff; font-size: 14px; font-family: Arial, Helvetica, sans-serif;">Email Verification</p>
                         </td>
                     </tr>
                     
                     <!-- Content -->
                     <tr>
                         <td style="padding: 40px;">
-                            <div style="text-align: left; margin-bottom: 24px;">
-                                <p style="margin: 0 0 12px 0; color: #374151; font-size: 16px; font-weight: 400;">
-                                    {greeting}
-                                </p>
-                                <p style="margin: 0; color: #6b7280; font-size: 15px; line-height: 1.6;">
-                                    Your One-Time Password (OTP) for Pixel Perfect UI is:
-                                </p>
-                            </div>
+                            <p style="margin: 0 0 12px 0; color: #374151; font-size: 16px; font-family: Arial, Helvetica, sans-serif;">
+                                {greeting}
+                            </p>
+                            <p style="margin: 0 0 24px 0; color: #6b7280; font-size: 15px; line-height: 24px; font-family: Arial, Helvetica, sans-serif;">
+                                Your One-Time Password (OTP) for Pixel Perfect UI is:
+                            </p>
                             
                             <!-- OTP Code Box -->
-                            <div style="background: linear-gradient(135deg, #f3e8ff 0%, #ede9fe 100%); border: 1px solid #d8b4fe; border-radius: 8px; padding: 20px; text-align: center; margin: 24px 0;">
-                                <p style="margin: 0 0 6px 0; color: #7c3aed; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">🔐 YOUR OTP CODE</p>
-                                <p style="margin: 0; color: #7c3aed; font-size: 28px; font-weight: 700; letter-spacing: 3px; font-family: 'Courier New', monospace;">{otp}</p>
-                            </div>
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin: 24px 0;">
+                                <tr>
+                                    <td align="center" bgcolor="#f3e8ff" style="background-color: #f3e8ff; border: 1px solid #d8b4fe; padding: 20px;">
+                                        <p style="margin: 0 0 6px 0; color: #7c3aed; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; font-weight: bold; font-family: Arial, Helvetica, sans-serif;">YOUR OTP CODE</p>
+                                        <p style="margin: 0; color: #7c3aed; font-size: 32px; font-weight: bold; letter-spacing: 6px; font-family: 'Courier New', Courier, monospace;">{otp}</p>
+                                    </td>
+                                </tr>
+                            </table>
                             
-                            <div style="text-align: center; margin: 24px 0;">
-                                <p style="margin: 0 0 4px 0; color: #374151; font-size: 14px; line-height: 1.5;">
-                                    This code will remain valid for <strong>{OTP_EXPIRY_MINUTES} minutes</strong>.
-                                </p>
-                                <p style="margin: 0; color: #6b7280; font-size: 14px; line-height: 1.5;">
-                                    Please enter it in the app to complete your verification.
-                                </p>
-                            </div>
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                                <tr>
+                                    <td align="center" style="padding: 16px 0;">
+                                        <p style="margin: 0 0 4px 0; color: #374151; font-size: 14px; font-family: Arial, Helvetica, sans-serif;">
+                                            This code will remain valid for <strong>{OTP_EXPIRY_MINUTES} minutes</strong>.
+                                        </p>
+                                        <p style="margin: 0; color: #6b7280; font-size: 14px; font-family: Arial, Helvetica, sans-serif;">
+                                            Please enter it in the app to complete your verification.
+                                        </p>
+                                    </td>
+                                </tr>
+                            </table>
                             
-                            <div style="border-top: 1px solid #e5e7eb; padding-top: 20px; margin-top: 28px;">
-                                <p style="margin: 0 0 12px 0; color: #6b7280; font-size: 13px; line-height: 1.5;">
-                                    If you did not request this code, please ignore this email or contact our support team immediately.
-                                </p>
-                                
-                                <p style="margin: 0; color: #374151; font-size: 14px; line-height: 1.5;">
-                                    Best regards,<br>
-                                    <strong>The Pixel Perfect UI Team</strong>
-                                </p>
-                            </div>
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin-top: 24px;">
+                                <tr>
+                                    <td style="border-top: 1px solid #e5e7eb; padding-top: 20px;">
+                                        <p style="margin: 0 0 12px 0; color: #6b7280; font-size: 13px; line-height: 20px; font-family: Arial, Helvetica, sans-serif;">
+                                            If you did not request this code, please ignore this email or contact our support team immediately.
+                                        </p>
+                                        <p style="margin: 0; color: #374151; font-size: 14px; line-height: 21px; font-family: Arial, Helvetica, sans-serif;">
+                                            Best regards,<br />
+                                            <strong>The Pixel Perfect UI Team</strong>
+                                        </p>
+                                    </td>
+                                </tr>
+                            </table>
                         </td>
                     </tr>
                     
                     <!-- Footer -->
                     <tr>
-                        <td style="background-color: #f9fafb; padding: 20px 40px; text-align: center; border-top: 1px solid #e5e7eb;">
-                            <p style="margin: 0; color: #9ca3af; font-size: 11px; line-height: 1.4;">
-                                © 2025 Pixel Perfect UI. All rights reserved.
+                        <td align="center" bgcolor="#f9fafb" style="background-color: #f9fafb; padding: 20px 40px; border-top: 1px solid #e5e7eb;">
+                            <p style="margin: 0; color: #9ca3af; font-size: 11px; font-family: Arial, Helvetica, sans-serif;">
+                                &copy; 2025 Pixel Perfect UI. All rights reserved.
                             </p>
                         </td>
                     </tr>
@@ -388,83 +402,99 @@ Best regards,
 The Pixel Perfect UI Team
         """
         
-        # HTML version with styling
+        # HTML version with Outlook-compatible styling (no CSS gradients)
         html_content = f"""
-<!DOCTYPE html>
-<html>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Password Reset - Pixel Perfect UI</title>
+    <!--[if mso]>
+    <style type="text/css">
+        body, table, td {{font-family: Arial, Helvetica, sans-serif !important;}}
+    </style>
+    <![endif]-->
 </head>
-<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f3f4f6;">
-    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f3f4f6; padding: 40px 20px;">
+<body style="margin: 0; padding: 0; background-color: #f3f4f6; font-family: Arial, Helvetica, sans-serif;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: #f3f4f6;">
         <tr>
-            <td align="center">
-                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width: 520px; background-color: #ffffff; border-radius: 16px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);">
+            <td align="center" style="padding: 40px 20px;">
+                <table role="presentation" width="520" cellspacing="0" cellpadding="0" border="0" style="max-width: 520px; background-color: #ffffff;">
                     <!-- Header -->
                     <tr>
-                        <td style="background: linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #6366f1 100%); padding: 32px; border-radius: 16px 16px 0 0; text-align: center;">
-                            <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 700;">Pixel Perfect UI</h1>
-                            <p style="margin: 8px 0 0 0; color: rgba(255,255,255,0.8); font-size: 14px;">Password Reset Request</p>
+                        <td align="center" bgcolor="#7c3aed" style="background-color: #7c3aed; padding: 32px 20px;">
+                            <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: bold; font-family: Arial, Helvetica, sans-serif;">Pixel Perfect UI</h1>
+                            <p style="margin: 8px 0 0 0; color: #e9d5ff; font-size: 14px; font-family: Arial, Helvetica, sans-serif;">Password Reset Request</p>
                         </td>
                     </tr>
                     
                     <!-- Content -->
                     <tr>
-                        <td style="padding: 32px;">
-                            <p style="margin: 0 0 16px 0; color: #374151; font-size: 16px; line-height: 1.6;">
+                        <td style="padding: 32px 24px;">
+                            <p style="margin: 0 0 16px 0; color: #374151; font-size: 16px; line-height: 24px; font-family: Arial, Helvetica, sans-serif;">
                                 {greeting}
                             </p>
-                            <p style="margin: 0 0 24px 0; color: #374151; font-size: 16px; line-height: 1.6;">
+                            <p style="margin: 0 0 24px 0; color: #374151; font-size: 16px; line-height: 24px; font-family: Arial, Helvetica, sans-serif;">
                                 We received a request to reset your password for your Pixel Perfect UI account.
                                 If you made this request, click the button below to reset your password:
                             </p>
                             
-                            <!-- Reset Button -->
-                            <div style="text-align: center; margin: 32px 0;">
-                                <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto;">
-                                    <tr>
-                                        <td style="background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%); border-radius: 12px; box-shadow: 0 4px 14px rgba(124, 58, 237, 0.4);">
-                                            <a href="{reset_url}" target="_blank" style="display: inline-block; color: #ffffff; text-decoration: none; padding: 16px 32px; font-size: 16px; font-weight: 600; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
-                                                &#x1F449; Reset Password
-                                            </a>
-                                        </td>
-                                    </tr>
-                                </table>
-                            </div>
+                            <!-- Reset Button - Outlook compatible -->
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin: 32px 0;">
+                                <tr>
+                                    <td align="center">
+                                        <!--[if mso]>
+                                        <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="{reset_url}" style="height:50px;v-text-anchor:middle;width:200px;" arcsize="10%" strokecolor="#7c3aed" fillcolor="#7c3aed">
+                                        <w:anchorlock/>
+                                        <center style="color:#ffffff;font-family:Arial,sans-serif;font-size:16px;font-weight:bold;">Reset Password</center>
+                                        </v:roundrect>
+                                        <![endif]-->
+                                        <!--[if !mso]><!-->
+                                        <a href="{reset_url}" target="_blank" style="display: inline-block; background-color: #7c3aed; color: #ffffff; text-decoration: none; padding: 14px 32px; font-size: 16px; font-weight: bold; font-family: Arial, Helvetica, sans-serif; border-radius: 8px;">Reset Password</a>
+                                        <!--<![endif]-->
+                                    </td>
+                                </tr>
+                            </table>
                             
                             <!-- Link fallback -->
-                            <div style="background-color: #f9fafb; border-radius: 8px; padding: 16px; margin: 24px 0;">
-                                <p style="margin: 0 0 8px 0; color: #6b7280; font-size: 12px;">Or copy and paste this link into your browser:</p>
-                                <p style="margin: 0; color: #7c3aed; font-size: 12px; word-break: break-all;">{reset_url}</p>
-                            </div>
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin: 24px 0;">
+                                <tr>
+                                    <td bgcolor="#f9fafb" style="background-color: #f9fafb; padding: 16px; border-radius: 8px;">
+                                        <p style="margin: 0 0 8px 0; color: #6b7280; font-size: 12px; font-family: Arial, Helvetica, sans-serif;">Or copy and paste this link into your browser:</p>
+                                        <p style="margin: 0; color: #7c3aed; font-size: 12px; word-break: break-all; font-family: Arial, Helvetica, sans-serif;">{reset_url}</p>
+                                    </td>
+                                </tr>
+                            </table>
                             
-                            <p style="margin: 0 0 8px 0; color: #6b7280; font-size: 14px; text-align: center;">
-                                ⏱️ This link expires in <strong>{RESET_TOKEN_EXPIRY_MINUTES} minutes</strong>
+                            <p style="margin: 0 0 8px 0; color: #6b7280; font-size: 14px; text-align: center; font-family: Arial, Helvetica, sans-serif;">
+                                This link expires in <strong>{RESET_TOKEN_EXPIRY_MINUTES} minutes</strong>
                             </p>
                             
-                            <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;">
-                            
-                            <p style="margin: 0 0 16px 0; color: #374151; font-size: 14px; line-height: 1.6;">
-                                If you did not request a password reset, please ignore this email. Your account will remain secure.
-                            </p>
-                            
-                            <p style="margin: 0; color: #374151; font-size: 14px; line-height: 1.6;">
-                                If you need any further assistance, feel free to contact our support team.
-                            </p>
-                            
-                            <p style="margin: 24px 0 0 0; color: #374151; font-size: 14px; line-height: 1.6;">
-                                Best regards,<br>
-                                <strong>The Pixel Perfect UI Team</strong>
-                            </p>
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin: 24px 0;">
+                                <tr>
+                                    <td style="border-top: 1px solid #e5e7eb; padding-top: 24px;">
+                                        <p style="margin: 0 0 16px 0; color: #374151; font-size: 14px; line-height: 21px; font-family: Arial, Helvetica, sans-serif;">
+                                            If you did not request a password reset, please ignore this email. Your account will remain secure.
+                                        </p>
+                                        <p style="margin: 0 0 16px 0; color: #374151; font-size: 14px; line-height: 21px; font-family: Arial, Helvetica, sans-serif;">
+                                            If you need any further assistance, feel free to contact our support team.
+                                        </p>
+                                        <p style="margin: 0; color: #374151; font-size: 14px; line-height: 21px; font-family: Arial, Helvetica, sans-serif;">
+                                            Best regards,<br />
+                                            <strong>The Pixel Perfect UI Team</strong>
+                                        </p>
+                                    </td>
+                                </tr>
+                            </table>
                         </td>
                     </tr>
                     
                     <!-- Footer -->
                     <tr>
-                        <td style="background-color: #f9fafb; padding: 24px; border-radius: 0 0 16px 16px; text-align: center;">
-                            <p style="margin: 0; color: #9ca3af; font-size: 12px;">
-                                © 2025 Pixel Perfect UI. All rights reserved.
+                        <td align="center" bgcolor="#f9fafb" style="background-color: #f9fafb; padding: 24px;">
+                            <p style="margin: 0; color: #9ca3af; font-size: 12px; font-family: Arial, Helvetica, sans-serif;">
+                                &copy; 2025 Pixel Perfect UI. All rights reserved.
                             </p>
                         </td>
                     </tr>
