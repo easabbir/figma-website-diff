@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { ArrowLeft, Download, CheckCircle, AlertCircle, Info, Loader2, FileText, ImageOff, Layers } from 'lucide-react'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { ArrowLeft, Download, CheckCircle, AlertCircle, Info, Loader2, FileText, ImageOff, Layers, Sparkles } from 'lucide-react'
 import axios from 'axios'
 import { toast } from 'react-toastify'
 import {
@@ -42,11 +42,118 @@ export default function ReportDisplay({ jobId, onBack, fromHistory = false }: Re
   const [currentStep, setCurrentStep] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [viewMode, setViewMode] = useState<'slider' | 'sideBySide' | 'overlay'>('slider')
+  const [viewMode, setViewMode] = useState<'slider' | 'sideBySide' | 'overlay' | 'difference'>('slider')
   const [overlayOpacity, setOverlayOpacity] = useState(50)
+  const [diffLoading, setDiffLoading] = useState(false)
+  const [diffThreshold, setDiffThreshold] = useState(30)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
   const [figmaImageError, setFigmaImageError] = useState(false)
   const [websiteImageError, setWebsiteImageError] = useState(false)
   const [toastShown, setToastShown] = useState(false)
+
+  // Compute pixel difference between two images
+  const computeDifference = useCallback((figmaUrl: string, websiteUrl: string, threshold: number) => {
+    if (!canvasRef.current) return
+    
+    setDiffLoading(true)
+    
+    const canvas = canvasRef.current
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    
+    const img1 = new Image()
+    const img2 = new Image()
+    img1.crossOrigin = 'anonymous'
+    img2.crossOrigin = 'anonymous'
+    
+    let loaded = 0
+    
+    const onBothLoaded = () => {
+      loaded++
+      if (loaded < 2) return
+      
+      // Use the larger dimensions
+      const width = Math.max(img1.width, img2.width)
+      const height = Math.max(img1.height, img2.height)
+      
+      canvas.width = width
+      canvas.height = height
+      
+      // Create temporary canvases for each image
+      const tempCanvas1 = document.createElement('canvas')
+      const tempCanvas2 = document.createElement('canvas')
+      tempCanvas1.width = width
+      tempCanvas1.height = height
+      tempCanvas2.width = width
+      tempCanvas2.height = height
+      
+      const tempCtx1 = tempCanvas1.getContext('2d')
+      const tempCtx2 = tempCanvas2.getContext('2d')
+      
+      if (!tempCtx1 || !tempCtx2) return
+      
+      // Fill with white background and draw images
+      tempCtx1.fillStyle = '#ffffff'
+      tempCtx1.fillRect(0, 0, width, height)
+      tempCtx1.drawImage(img1, 0, 0)
+      
+      tempCtx2.fillStyle = '#ffffff'
+      tempCtx2.fillRect(0, 0, width, height)
+      tempCtx2.drawImage(img2, 0, 0)
+      
+      // Get image data
+      const data1 = tempCtx1.getImageData(0, 0, width, height)
+      const data2 = tempCtx2.getImageData(0, 0, width, height)
+      const diffData = ctx.createImageData(width, height)
+      
+      // Compare pixels
+      for (let i = 0; i < data1.data.length; i += 4) {
+        const r1 = data1.data[i]
+        const g1 = data1.data[i + 1]
+        const b1 = data1.data[i + 2]
+        
+        const r2 = data2.data[i]
+        const g2 = data2.data[i + 1]
+        const b2 = data2.data[i + 2]
+        
+        // Calculate color difference
+        const diff = Math.abs(r1 - r2) + Math.abs(g1 - g2) + Math.abs(b1 - b2)
+        
+        if (diff > threshold) {
+          // Highlight difference in red
+          diffData.data[i] = 255      // R
+          diffData.data[i + 1] = 60   // G
+          diffData.data[i + 2] = 60   // B
+          diffData.data[i + 3] = 255  // A
+        } else {
+          // Show matching areas in grayscale
+          const gray = Math.round((r1 + g1 + b1) / 3)
+          diffData.data[i] = gray
+          diffData.data[i + 1] = gray
+          diffData.data[i + 2] = gray
+          diffData.data[i + 3] = 255
+        }
+      }
+      
+      ctx.putImageData(diffData, 0, 0)
+      setDiffLoading(false)
+    }
+    
+    img1.onload = onBothLoaded
+    img2.onload = onBothLoaded
+    img1.onerror = () => setDiffLoading(false)
+    img2.onerror = () => setDiffLoading(false)
+    
+    img1.src = figmaUrl
+    img2.src = websiteUrl
+  }, [])
+
+  // Compute difference when view mode changes to 'difference' or threshold changes
+  useEffect(() => {
+    if (viewMode === 'difference' && report?.figma_screenshot_url && report?.website_screenshot_url) {
+      computeDifference(report.figma_screenshot_url, report.website_screenshot_url, diffThreshold)
+    }
+  }, [viewMode, diffThreshold, report?.figma_screenshot_url, report?.website_screenshot_url, computeDifference])
 
   // Smooth progress animation - interpolate between actual progress values
   useEffect(() => {
@@ -463,6 +570,17 @@ export default function ReportDisplay({ jobId, onBack, fromHistory = false }: Re
                   <Layers className="w-3.5 h-3.5" />
                   Overlay
                 </button>
+                <button
+                  onClick={() => setViewMode('difference')}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all flex items-center gap-1 ${
+                    viewMode === 'difference' 
+                      ? 'bg-white text-gray-900 shadow-sm' 
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  Difference
+                </button>
               </div>
             )}
           </div>
@@ -553,6 +671,59 @@ export default function ReportDisplay({ jobId, onBack, fromHistory = false }: Re
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full bg-emerald-500"></div>
                   <span>Website (Overlay)</span>
+                </div>
+              </div>
+            </>
+          ) : report.figma_screenshot_url && report.website_screenshot_url && !figmaImageError && !websiteImageError && viewMode === 'difference' ? (
+            /* Difference Highlight View */
+            <>
+              {/* Threshold Control */}
+              <div className="mb-4 p-4 bg-gray-50 rounded-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-gray-700">Sensitivity Threshold</span>
+                  <span className="text-sm text-gray-500">{diffThreshold}</span>
+                </div>
+                <div className="flex items-center gap-4">
+                  <span className="text-xs text-gray-500 font-medium whitespace-nowrap">Low</span>
+                  <input
+                    type="range"
+                    min="5"
+                    max="100"
+                    value={diffThreshold}
+                    onChange={(e) => setDiffThreshold(Number(e.target.value))}
+                    className="w-full h-2 bg-gradient-to-r from-green-400 to-red-500 rounded-lg appearance-none cursor-pointer slider-thumb"
+                  />
+                  <span className="text-xs text-gray-500 font-medium whitespace-nowrap">High</span>
+                </div>
+                <p className="text-xs text-gray-400 mt-2 text-center">
+                  Lower values detect more subtle differences, higher values show only major changes
+                </p>
+              </div>
+              
+              {/* Difference Canvas Container */}
+              <div className="rounded-lg overflow-hidden border-2 border-gray-200 bg-gray-900">
+                <canvas
+                  ref={canvasRef}
+                  className="w-full h-auto"
+                  style={{ display: diffLoading ? 'none' : 'block' }}
+                />
+                {diffLoading && (
+                  <div className="flex flex-col items-center justify-center py-20">
+                    <Loader2 className="w-8 h-8 text-white animate-spin mb-3" />
+                    <span className="text-white text-sm">Computing differences...</span>
+                  </div>
+                )}
+              </div>
+              
+              {/* Legend */}
+              <div className="flex justify-center gap-6 text-sm text-gray-600 mt-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                  <span>Differences (Red)</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-gray-400"></div>
+                  <span>Matching Areas (Gray)</span>
                 </div>
               </div>
             </>
