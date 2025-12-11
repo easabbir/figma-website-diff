@@ -43,7 +43,8 @@ class WebsiteAnalyzer:
                                  wait_for_selector: Optional[str] = None,
                                  full_page: bool = True,
                                  scroll_to_load: bool = True,
-                                 wait_for_animations: bool = True) -> str:
+                                 wait_for_animations: bool = True,
+                                 dismiss_cookies: bool = True) -> str:
         """
         Capture screenshot of a webpage with full content loading.
         
@@ -55,6 +56,7 @@ class WebsiteAnalyzer:
             full_page: Capture full page or just viewport
             scroll_to_load: Scroll through page to trigger lazy loading
             wait_for_animations: Wait for CSS animations/transitions to complete
+            dismiss_cookies: Attempt to dismiss cookie consent banners
             
         Returns:
             Path to saved screenshot
@@ -73,6 +75,10 @@ class WebsiteAnalyzer:
             
             # Wait for DOM content to be fully painted
             await self._wait_for_dom_stable(page)
+            
+            # Dismiss cookie consent banners if present
+            if dismiss_cookies:
+                await self._dismiss_cookie_banners(page)
             
             # Scroll through the page to trigger lazy loading
             if scroll_to_load and full_page:
@@ -143,6 +149,165 @@ class WebsiteAnalyzer:
         except Exception as e:
             logger.warning(f"DOM stability check failed: {e}")
             await page.wait_for_timeout(1000)
+    
+    async def _dismiss_cookie_banners(self, page: Page):
+        """
+        Attempt to dismiss cookie consent banners using common selectors and patterns.
+        """
+        try:
+            # Common cookie consent button selectors (Accept/Allow/OK buttons)
+            cookie_accept_selectors = [
+                # Common button text patterns
+                'button:has-text("Accept")',
+                'button:has-text("Accept All")',
+                'button:has-text("Accept all")',
+                'button:has-text("Accept Cookies")',
+                'button:has-text("Accept cookies")',
+                'button:has-text("Allow")',
+                'button:has-text("Allow All")',
+                'button:has-text("Allow all")',
+                'button:has-text("Allow Cookies")',
+                'button:has-text("I Accept")',
+                'button:has-text("I agree")',
+                'button:has-text("I Agree")',
+                'button:has-text("Agree")',
+                'button:has-text("OK")',
+                'button:has-text("Got it")',
+                'button:has-text("Got It")',
+                'button:has-text("Understood")',
+                'button:has-text("Continue")',
+                'button:has-text("Close")',
+                'button:has-text("Dismiss")',
+                # Common class/id patterns
+                '[id*="cookie"] button',
+                '[id*="Cookie"] button',
+                '[id*="consent"] button',
+                '[id*="Consent"] button',
+                '[id*="gdpr"] button',
+                '[id*="GDPR"] button',
+                '[class*="cookie"] button',
+                '[class*="Cookie"] button',
+                '[class*="consent"] button',
+                '[class*="Consent"] button',
+                '[class*="gdpr"] button',
+                '.cookie-banner button',
+                '.cookie-consent button',
+                '.cookie-notice button',
+                '.cookie-popup button',
+                '.consent-banner button',
+                '.consent-popup button',
+                '#cookie-banner button',
+                '#cookie-consent button',
+                '#cookie-notice button',
+                '#cookieConsent button',
+                '#gdpr-banner button',
+                '#onetrust-accept-btn-handler',
+                '#accept-cookies',
+                '#acceptCookies',
+                '.accept-cookies',
+                '.acceptCookies',
+                '[data-testid="cookie-accept"]',
+                '[data-testid="accept-cookies"]',
+                '[aria-label*="cookie" i] button',
+                '[aria-label*="consent" i] button',
+                # CookieBot
+                '#CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll',
+                '#CybotCookiebotDialogBodyButtonAccept',
+                # OneTrust
+                '.onetrust-accept-btn-handler',
+                '#onetrust-accept-btn-handler',
+                # Quantcast
+                '.qc-cmp2-summary-buttons button:first-child',
+                # TrustArc
+                '.truste-consent-button',
+                # Didomi
+                '#didomi-notice-agree-button',
+                # Klaro
+                '.klaro .cm-btn-accept',
+                # Generic close buttons on overlays
+                '[class*="cookie"] [class*="close"]',
+                '[class*="cookie"] [class*="dismiss"]',
+                '[id*="cookie"] [class*="close"]',
+            ]
+            
+            # Try each selector
+            for selector in cookie_accept_selectors:
+                try:
+                    button = await page.query_selector(selector)
+                    if button:
+                        is_visible = await button.is_visible()
+                        if is_visible:
+                            await button.click()
+                            logger.info(f"Dismissed cookie banner using selector: {selector}")
+                            await page.wait_for_timeout(500)  # Wait for banner to disappear
+                            return
+                except Exception:
+                    continue
+            
+            # Try to hide cookie banners via JavaScript if clicking didn't work
+            await page.evaluate("""
+                () => {
+                    // Common cookie banner container selectors
+                    const bannerSelectors = [
+                        '[id*="cookie"]',
+                        '[id*="Cookie"]',
+                        '[id*="consent"]',
+                        '[id*="Consent"]',
+                        '[id*="gdpr"]',
+                        '[id*="GDPR"]',
+                        '[class*="cookie-banner"]',
+                        '[class*="cookie-consent"]',
+                        '[class*="cookie-notice"]',
+                        '[class*="cookie-popup"]',
+                        '[class*="consent-banner"]',
+                        '[class*="consent-popup"]',
+                        '[class*="gdpr"]',
+                        '.cc-window',
+                        '.cc-banner',
+                        '#onetrust-consent-sdk',
+                        '#onetrust-banner-sdk',
+                        '.qc-cmp2-container',
+                        '#truste-consent-track',
+                        '#didomi-host',
+                        '.klaro',
+                        '[aria-label*="cookie" i]',
+                        '[aria-label*="consent" i]',
+                        '[role="dialog"][aria-modal="true"]'
+                    ];
+                    
+                    bannerSelectors.forEach(selector => {
+                        document.querySelectorAll(selector).forEach(el => {
+                            // Check if it looks like a cookie banner (fixed/sticky position, overlay)
+                            const style = window.getComputedStyle(el);
+                            const isOverlay = style.position === 'fixed' || style.position === 'sticky' || 
+                                             style.position === 'absolute' || parseInt(style.zIndex) > 1000;
+                            
+                            if (isOverlay) {
+                                el.style.display = 'none';
+                                el.remove();
+                            }
+                        });
+                    });
+                    
+                    // Also remove any overlay/backdrop elements
+                    document.querySelectorAll('[class*="overlay"], [class*="backdrop"], [class*="modal-backdrop"]').forEach(el => {
+                        const style = window.getComputedStyle(el);
+                        if (style.position === 'fixed' && parseFloat(style.opacity) < 1) {
+                            el.style.display = 'none';
+                        }
+                    });
+                    
+                    // Reset body overflow if it was locked
+                    document.body.style.overflow = '';
+                    document.documentElement.style.overflow = '';
+                }
+            """)
+            
+            logger.info("Applied JavaScript cookie banner removal")
+            await page.wait_for_timeout(300)
+            
+        except Exception as e:
+            logger.warning(f"Cookie banner dismissal failed: {e}")
     
     async def _scroll_to_load_content(self, page: Page):
         """
