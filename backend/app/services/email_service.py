@@ -53,10 +53,8 @@ class OTPStorage:
         user_service.delete_otp(email)
     
     def get_otp_info(self, email: str) -> Optional[Dict]:
-        """Get OTP info (for resend logic) - returns minimal info."""
-        # For resend, we just need to know if OTP exists
-        # The actual OTP info is stored in database
-        return {"exists": True}  # Simplified for PostgreSQL
+        """Get OTP info (for resend logic) - returns OTP info with user_data."""
+        return user_service.get_otp_info(email)
 
 
 # Global OTP storage instance

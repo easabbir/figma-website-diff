@@ -179,6 +179,25 @@ class UserService:
         except Exception as e:
             logger.error(f"Error deleting OTP: {e}")
     
+    def get_otp_info(self, email: str) -> Optional[Dict]:
+        """Get OTP info for resend logic."""
+        try:
+            db = self._get_db()
+            try:
+                repo = OTPTokenRepository(db)
+                token = repo.get_by_email(email)
+                if token and not token.is_expired:
+                    return {
+                        "exists": True,
+                        "user_data": token.user_data
+                    }
+                return None
+            finally:
+                db.close()
+        except Exception as e:
+            logger.error(f"Error getting OTP info: {e}")
+            return None
+    
     # ============ Reset Token Operations ============
     
     def store_reset_token(self, user_id: str, email: str, token: str, expiry_minutes: int = 30) -> bool:
