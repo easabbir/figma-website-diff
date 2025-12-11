@@ -39,7 +39,7 @@ class UserService:
             db = self._get_db()
             try:
                 repo = UserRepository(db)
-                user = repo.create(email, password_hash, full_name)
+                user = repo.create_user(email, password_hash, full_name)
                 return self._user_to_dict(user)
             finally:
                 db.close()
@@ -146,7 +146,7 @@ class UserService:
             db = self._get_db()
             try:
                 repo = OTPTokenRepository(db)
-                repo.create(email, otp_code, user_data, expiry_minutes)
+                repo.create_token(email, otp_code, user_data, expiry_minutes)
                 return True
             finally:
                 db.close()
@@ -206,7 +206,7 @@ class UserService:
             db = self._get_db()
             try:
                 repo = ResetTokenRepository(db)
-                repo.create(user_id, email, token, expiry_minutes)
+                repo.create_token(user_id, email, token, expiry_minutes)
                 return True
             finally:
                 db.close()
@@ -256,6 +256,10 @@ class UserDB:
     
     def get_user_by_email(self, email: str) -> Optional[Dict]:
         return user_service.get_user_by_email(email)
+    
+    def update_user(self, user_id: str, **kwargs) -> Optional[Dict]:
+        """Update user fields."""
+        return user_service.update_user(user_id, **kwargs)
     
     def update_profile(self, user_id: str, full_name: Optional[str] = None, profile_image: Optional[str] = None) -> Optional[Dict]:
         kwargs = {}
