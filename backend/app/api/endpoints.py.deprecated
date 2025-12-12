@@ -1,0 +1,18 @@
+"""
+⚠️ DEPRECATED FILE ⚠️
+
+This file has been split into modular endpoint files for better maintainability:
+
+- comparison_endpoints.py - Comparison and responsive comparison endpoints
+- history_endpoints.py - History management endpoints  
+- pdf_endpoints.py - PDF report generation endpoints
+- oauth_endpoints.py - Figma OAuth integration endpoints
+- auth_endpoints.py - Authentication endpoints
+- websocket.py - WebSocket endpoints
+
+Please update your imports accordingly.
+
+This file can be safely removed once all references are updated.
+
+Migration date: 2024
+"""
