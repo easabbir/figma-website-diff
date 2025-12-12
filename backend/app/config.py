@@ -60,6 +60,16 @@ class Settings(BaseSettings):
     
     # Database (PostgreSQL)
     DATABASE_URL: str = "postgresql://postgres:postgres@localhost:5432/pixel_perfect_ui"
+    
+    # Environment (development/production)
+    ENVIRONMENT: str = "development"
+    
+    # AWS S3 Configuration (for production profile image storage)
+    AWS_ACCESS_KEY_ID: Optional[str] = None
+    AWS_SECRET_ACCESS_KEY: Optional[str] = None
+    AWS_REGION: str = "ap-southeast-1"
+    AWS_S3_BUCKET: Optional[str] = None
+    AWS_S3_CUSTOM_DOMAIN: Optional[str] = None  # Optional: CloudFront or custom domain
 
 
 @lru_cache()

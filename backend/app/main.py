@@ -47,6 +47,9 @@ Path(settings.STATIC_DIR).mkdir(exist_ok=True)
 # Mount static files
 app.mount("/static", StaticFiles(directory=settings.OUTPUT_DIR), name="static")
 
+# Mount uploads folder for profile images (local development)
+app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads")
+
 # Include routers
 app.include_router(auth_endpoints.router, prefix=settings.API_V1_PREFIX, tags=["authentication"])
 app.include_router(comparison_endpoints.router, prefix=settings.API_V1_PREFIX, tags=["comparison"])

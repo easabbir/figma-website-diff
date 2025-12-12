@@ -37,6 +37,9 @@ alembic==1.13.1
 # Async & Background Tasks
 celery==5.3.4
 
+# AWS S3 (for production profile image storage)
+boto3==1.35.0
+
 # Utilities
 python-multipart==0.0.6
 python-json-logger==2.0.7

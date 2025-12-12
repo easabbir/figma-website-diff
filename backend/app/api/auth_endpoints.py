@@ -35,6 +35,7 @@ from app.services.email_service import (
     invalidate_reset_token
 )
 from app.services.user_service import user_db
+from app.services.storage_service import save_profile_image
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -224,7 +225,15 @@ async def update_profile(
         update_fields['full_name'] = profile_data.full_name
     
     if profile_data.profile_image is not None:
-        update_fields['profile_image'] = profile_data.profile_image
+        # Save image to storage (local folder for dev, S3 for prod)
+        image_url = save_profile_image(current_user.id, profile_data.profile_image)
+        if image_url:
+            update_fields['profile_image'] = image_url
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Failed to save profile image"
+            )
     
     if update_fields:
         user_db.update_user(current_user.id, **update_fields)
